@@ -33,16 +33,35 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   bool _arrastrandoEncima = false;
   bool _procesandoTodos = false;
 
-  /// Red neuronal propia de reconocimiento de dígitos. `null` hasta que
-  /// termine de cargarse (o si no hay un modelo entrenado disponible).
+  /// Red neuronal propia de reconocimiento de dígitos. `null` mientras carga
+  /// y también si la carga falló (ver [_errorRedes]).
   RedesDominio? _redes;
+
+  /// Pasa a `true` cuando el intento de carga terminó, con o sin error.
+  bool _redesListas = false;
+
+  /// Mensaje visible si las redes no se pudieron cargar. Vacío si cargaron bien.
+  String? _errorRedes;
 
   @override
   void initState() {
     super.initState();
-    CargadorRedes.cargar().then((redes) {
-      if (mounted) setState(() => _redes = redes);
-    });
+    CargadorRedes.cargar().then(
+      (redes) {
+        if (!mounted) return;
+        setState(() {
+          _redes = redes;
+          _redesListas = true;
+        });
+      },
+      onError: (Object e) {
+        if (!mounted) return;
+        setState(() {
+          _redesListas = true;
+          _errorRedes = 'No se pudieron cargar las redes neuronales: $e';
+        });
+      },
+    );
   }
 
   Future<void> _seleccionarDocumentos() async {
@@ -57,27 +76,33 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 
   void _agregarDocumentos(List<Documento> nuevos) {
     final rutasExistentes = _documentos.map((d) => d.ruta).toSet();
-    final sinDuplicados =
-        nuevos.where((d) => !rutasExistentes.contains(d.ruta)).toList();
+    final sinDuplicados = nuevos
+        .where((d) => !rutasExistentes.contains(d.ruta))
+        .toList();
 
     setState(() => _documentos.addAll(sinDuplicados));
 
     final omitidos = nuevos.length - sinDuplicados.length;
     if (omitidos > 0 && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            '$omitidos archivo${omitidos != 1 ? 's' : ''} ya estaba${omitidos != 1 ? 'n' : ''} en la lista.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$omitidos archivo${omitidos != 1 ? 's' : ''} ya estaba${omitidos != 1 ? 'n' : ''} en la lista.',
+          ),
+        ),
+      );
     }
   }
 
   void _onDrop(DropDoneDetails details) {
     final pdfs = details.files
         .where((f) => f.path.toLowerCase().endsWith('.pdf'))
-        .map((f) => Documento(
-              nombre: File(f.path).uri.pathSegments.last,
-              ruta: f.path,
-            ))
+        .map(
+          (f) => Documento(
+            nombre: File(f.path).uri.pathSegments.last,
+            ruta: f.path,
+          ),
+        )
         .toList();
 
     final ignorados = details.files.length - pdfs.length;
@@ -85,10 +110,13 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
     if (pdfs.isNotEmpty) _agregarDocumentos(pdfs);
 
     if (ignorados > 0 && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            '$ignorados archivo${ignorados != 1 ? 's' : ''} ignorado${ignorados != 1 ? 's' : ''}: solo se aceptan PDF.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$ignorados archivo${ignorados != 1 ? 's' : ''} ignorado${ignorados != 1 ? 's' : ''}: solo se aceptan PDF.',
+          ),
+        ),
+      );
     }
   }
 
@@ -114,11 +142,15 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
   void _registrarDocumento(Documento documento) {
     final repositorio = widget.repositorio;
     if (repositorio == null) {
-      _avisar('No se pudo abrir la base de datos: ${widget.errorBaseDatos ?? 'error desconocido'}');
+      _avisar(
+        'No se pudo abrir la base de datos: ${widget.errorBaseDatos ?? 'error desconocido'}',
+      );
       return;
     }
     try {
-      final resultado = repositorio.registrar(DocumentoAlmacenado.desdeDocumentoConfirmado(documento));
+      final resultado = repositorio.registrar(
+        DocumentoAlmacenado.desdeDocumentoConfirmado(documento),
+      );
       if (resultado.registrado) {
         setState(() => documento.idRegistro = resultado.documento.id);
         _avisar('Documento registrado correctamente.');
@@ -128,25 +160,34 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
         _avisar('Este documento ya se encuentra registrado.');
       }
     } catch (e) {
-      _avisar('No se pudo registrar el documento: ${e is StateError ? e.message : e}');
+      _avisar(
+        'No se pudo registrar el documento: ${e is StateError ? e.message : e}',
+      );
     }
   }
 
-  /// Si un documento ya registrado se vuelve a confirmar (y por tanto se puede
-  /// renombrar), la base debe seguir apuntando a su ruta actual.
+  /// Si un documento ya registrado se vuelve a confirmar, la base guarda todos
+  /// los datos confirmados (no solo la ruta del PDF renombrado).
   void _documentoCambio(Documento documento) {
     final id = documento.idRegistro;
-    if (id != null && documento.datosConfirmados) {
+    final repositorio = widget.repositorio;
+    if (id != null && documento.datosConfirmados && repositorio != null) {
       try {
-        widget.repositorio?.actualizarRutaPdf(id, documento.ruta);
-      } catch (_) {
-        // La ruta guardada quedaría desactualizada; no debe interrumpir la edición.
+        repositorio.actualizarDatosConfirmados(
+          id,
+          DocumentoAlmacenado.desdeDocumentoConfirmado(documento),
+        );
+      } catch (e) {
+        _avisar(
+          'No se pudo actualizar el documento registrado: ${e is StateError ? e.message : e}',
+        );
       }
     }
     setState(() {});
   }
 
   Future<void> _procesarDocumento(Documento documento) async {
+    if (!_redesListas) return;
     final procesador = ProcesadorPdf(redes: _redes);
     await procesador.procesarDocumento(documento, () {
       if (mounted) setState(() {});
@@ -191,13 +232,17 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: FilledButton.icon(
-                      onPressed: _procesandoTodos ? null : _procesarTodos,
+                      onPressed: _procesandoTodos || !_redesListas
+                          ? null
+                          : _procesarTodos,
                       icon: _procesandoTodos
                           ? const SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Icon(Icons.play_circle_outline),
                       label: const Text('Procesar todos'),
@@ -226,10 +271,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.25)
                 : null,
             border: _arrastrandoEncima
-                ? Border.all(
-                    color: theme.colorScheme.primary,
-                    width: 2,
-                  )
+                ? Border.all(color: theme.colorScheme.primary, width: 2)
                 : null,
           ),
           child: Padding(
@@ -249,22 +291,44 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
                               )
                             : const Icon(Icons.folder_open),
                         label: const Text('Seleccionar documentos PDF'),
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        'o arrastra archivos PDF aquí',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                    if (!_redesListas)
+                      Expanded(
+                        child: Text(
+                          'Cargando las redes neuronales…',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
+                      )
+                    else if (_errorRedes != null)
+                      Expanded(
+                        child: Text(
+                          _errorRedes!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: Text(
+                          'o arrastra archivos PDF aquí',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -283,23 +347,28 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 // Lista o estado vacío
                 Expanded(
                   child: hayDocumentos
-                      ? Builder(builder: (context) {
-                          final ordenados = ordenarDocumentos(_documentos);
-                          return ListView.builder(
-                            itemCount: ordenados.length,
-                            itemBuilder: (context, index) {
-                              final documento = ordenados[index];
-                              return DocumentoTile(
-                                key: ObjectKey(documento),
-                                documento: documento,
-                                onQuitar: () => _quitarDocumento(documento),
-                                onProcesar: () => _procesarDocumento(documento),
-                                onCambio: () => _documentoCambio(documento),
-                                onRegistrar: () => _registrarDocumento(documento),
-                              );
-                            },
-                          );
-                        })
+                      ? Builder(
+                          builder: (context) {
+                            final ordenados = ordenarDocumentos(_documentos);
+                            return ListView.builder(
+                              itemCount: ordenados.length,
+                              itemBuilder: (context, index) {
+                                final documento = ordenados[index];
+                                return DocumentoTile(
+                                  key: ObjectKey(documento),
+                                  documento: documento,
+                                  onQuitar: () => _quitarDocumento(documento),
+                                  onProcesar: () =>
+                                      _procesarDocumento(documento),
+                                  puedeProcesar: _redesListas,
+                                  onCambio: () => _documentoCambio(documento),
+                                  onRegistrar: () =>
+                                      _registrarDocumento(documento),
+                                );
+                              },
+                            );
+                          },
+                        )
                       : Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,

@@ -38,7 +38,12 @@ class CandidatoEncabezado {
   TipoResolucion? get tipoPorSiglas => CatalogoResoluciones.porSiglas(siglas);
 
   bool get limpio =>
-      numero != null && anio != null && !numeroReparado && !anioReparado && siglasConocidas && !siglasAproximadas;
+      numero != null &&
+      anio != null &&
+      !numeroReparado &&
+      !anioReparado &&
+      siglasConocidas &&
+      !siglasAproximadas;
 }
 
 class ExtractorEncabezado {
@@ -54,12 +59,23 @@ class ExtractorEncabezado {
 
   /// Símbolo `N°` suelto, con las deformaciones habituales del OCR: `N°`, `N*`,
   /// `N%`, `No.`, `NE`, `NS`, `N“`…
-  static final RegExp _simboloN = RegExp(r"^(?:N[A-Z°º*%'`´.¡“”" '"' r"]{0,2}\.?|№)$");
+  static final RegExp _simboloN = RegExp(
+    r"^(?:N[A-Z°º*%'`´.¡“”"
+    '"'
+    r"]{0,2}\.?|№)$",
+  );
 
-  static final RegExp _prefijoN = RegExp(r"^N[°º*%'`´.¡“”" '"' r"]{1,2}(.+)$");
+  static final RegExp _prefijoN = RegExp(
+    r"^N[°º*%'`´.¡“”"
+    '"'
+    r"]{1,2}(.+)$",
+  );
 
   /// `N` seguida de una letra ruidosa y los dígitos (`NE48`, `NS48`, `NT48`).
   static final RegExp _prefijoNConLetra = RegExp(r'^N[A-Z](\d{1,5})$');
+
+  /// `No.` o `NO.` pegado al número (`No.117`, `NO.O+4`). El texto ya está en mayúsculas.
+  static final RegExp _prefijoNoPunto = RegExp(r'^NO\.(.+)$');
 
   /// `N148`: el símbolo `°` se leyó como dígito; es ambiguo (¿148 o 48?).
   static final RegExp _prefijoNPegado = RegExp(r'^N(\d{2,5})$');
@@ -69,7 +85,8 @@ class ExtractorEncabezado {
   /// defecto, los primeros caracteres.
   static String seccionEncabezado(String texto, {int maximo = 1500}) {
     final norm = normalizarParaBusqueda(texto);
-    final m = RegExp(r'(?<![A-Z])(?:VISTOS?|CONSIDERANDO)(?![A-Z])').firstMatch(norm);
+    final m = RegExp(r'(?<![A-Z])(?:VISTOS?|CONSIDERANDO)(?![A-Z])')
+        .firstMatch(norm);
     var fin = m == null ? texto.length : m.start;
     if (fin > maximo) fin = maximo;
     return texto.substring(0, fin);
@@ -79,7 +96,8 @@ class ExtractorEncabezado {
   /// línea "Pocollay," con la fecha (lo que sigue son considerandos y citas).
   static String seccionCodigo(String texto) {
     final seccion = seccionEncabezado(texto);
-    final m = RegExp(r'POCOLLAY\s*[,;:]').firstMatch(normalizarParaBusqueda(seccion));
+    final m = RegExp(r'POCOLLAY\s*[,;:]')
+        .firstMatch(normalizarParaBusqueda(seccion));
     return m == null ? seccion : seccion.substring(0, m.start);
   }
 
@@ -93,7 +111,8 @@ class ExtractorEncabezado {
     final m = _anclaRe.allMatches(norm.substring(0, limite)).firstOrNull;
     if (m == null) return textoPagina;
     final previo = norm.substring(0, m.start);
-    if (!previo.contains('RESOLUCION') || RegExp(r'INFORME|OFICIO|DE FECHA|MEMORANDO').hasMatch(previo)) {
+    if (!previo.contains('RESOLUCION') ||
+        RegExp(r'INFORME|OFICIO|DE FECHA|MEMORANDO').hasMatch(previo)) {
       return textoPagina;
     }
     return textoPagina.substring(m.end).trimLeft();
@@ -124,10 +143,21 @@ class ExtractorEncabezado {
       final anioCrudo = m.namedGroup('anio')!;
       String? anio;
       var anioReparado = false;
-      final anioDigitos = anioCrudo.split('').map((c) => RegExp(r'\d').hasMatch(c)
-          ? c
-          : switch (c) { 'O' || 'Q' => '0', 'I' || '|' => '1', 'Z' => '2', _ => c }).join();
-      if (RegExp(r'^20\d{2}$').hasMatch(anioDigitos) && _anioPlausible(anioDigitos, ahora)) {
+      final anioDigitos = anioCrudo
+          .split('')
+          .map(
+            (c) => RegExp(r'\d').hasMatch(c)
+                ? c
+                : switch (c) {
+                    'O' || 'Q' => '0',
+                    'I' || '|' => '1',
+                    'Z' => '2',
+                    _ => c,
+                  },
+          )
+          .join();
+      if (RegExp(r'^20\d{2}$').hasMatch(anioDigitos) &&
+          _anioPlausible(anioDigitos, ahora)) {
         anio = anioDigitos;
         anioReparado = anioDigitos != anioCrudo;
       }
@@ -144,18 +174,21 @@ class ExtractorEncabezado {
         }
       }
 
-      resultado.add(CandidatoEncabezado(
-        numeroCrudo: numeroCrudo,
-        numero: numero,
-        numeroReparado: numeroReparado,
-        numeroAlternativo:
-            ambiguo && numero != null && numero.length >= 3 ? numero.substring(1) : null,
-        anio: anio,
-        anioReparado: anioReparado,
-        siglas: siglas,
-        siglasConocidas: conocidas,
-        siglasAproximadas: aproximadas,
-      ));
+      resultado.add(
+        CandidatoEncabezado(
+          numeroCrudo: numeroCrudo,
+          numero: numero,
+          numeroReparado: numeroReparado,
+          numeroAlternativo: ambiguo && numero != null && numero.length >= 3
+              ? numero.substring(1)
+              : null,
+          anio: anio,
+          anioReparado: anioReparado,
+          siglas: siglas,
+          siglasConocidas: conocidas,
+          siglasAproximadas: aproximadas,
+        ),
+      );
 
       if (m.end <= desde) break;
       desde = m.end;
@@ -173,7 +206,11 @@ class ExtractorEncabezado {
   /// `N°` si existe) y las une: `N° 074` → `074`, `N° OY 4` → `OY4`.
   /// Devuelve el texto leído y si la lectura es ambigua (`N148`).
   static (String, bool) _extraerNumeroCrudo(String pre) {
-    final piezas = pre.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final piezas = pre
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     final tomadas = <String>[];
     var ambiguo = false;
     for (var i = piezas.length - 1; i >= 0 && tomadas.length < 4; i--) {
@@ -187,6 +224,11 @@ class ExtractorEncabezado {
       final conLetra = _prefijoNConLetra.firstMatch(p);
       if (conLetra != null) {
         tomadas.insert(0, conLetra.group(1)!);
+        break;
+      }
+      final noPunto = _prefijoNoPunto.firstMatch(p);
+      if (noPunto != null) {
+        tomadas.insert(0, noPunto.group(1)!);
         break;
       }
       final pegado = _prefijoNPegado.firstMatch(p);

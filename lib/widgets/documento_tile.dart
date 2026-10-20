@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/documento.dart';
 import 'panel_copiar.dart';
 import 'panel_revision.dart';
@@ -10,6 +11,9 @@ class DocumentoTile extends StatelessWidget {
   final VoidCallback onProcesar;
   final VoidCallback onCambio;
 
+  /// Mientras las redes neuronales cargan, el botón Procesar queda inactivo.
+  final bool puedeProcesar;
+
   /// Registra el documento (con sus datos ya confirmados) en la base de datos local.
   final VoidCallback onRegistrar;
 
@@ -19,6 +23,7 @@ class DocumentoTile extends StatelessWidget {
     required this.onQuitar,
     required this.onProcesar,
     required this.onCambio,
+    this.puedeProcesar = true,
     required this.onRegistrar,
   });
 
@@ -57,8 +62,9 @@ class DocumentoTile extends StatelessWidget {
                     children: [
                       Text(
                         documento.nombre,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
@@ -117,15 +123,15 @@ class DocumentoTile extends StatelessWidget {
                     documento.datosConfirmados
                         ? 'Datos confirmados por el usuario.'
                         : documento.datos!.camposPorRevisar == 0
-                            ? 'Los cuatro campos fueron detectados; falta su confirmación.'
-                            : '${documento.datos!.camposPorRevisar} de 4 campos requieren revisión.',
+                        ? 'Los cuatro campos fueron detectados; falta su confirmación.'
+                        : '${documento.datos!.camposPorRevisar} de 4 campos requieren revisión.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: documento.datosConfirmados
                           ? Colors.green.shade800
                           : documento.datos!.camposPorRevisar == 0
-                              ? theme.colorScheme.onSurfaceVariant
-                              : Colors.deepOrange.shade800,
+                          ? theme.colorScheme.onSurfaceVariant
+                          : Colors.deepOrange.shade800,
                     ),
                   ),
                 ),
@@ -134,8 +140,9 @@ class DocumentoTile extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 documento.errorMensaje,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.error),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
               ),
             ],
             if (documento.tieneEdiciones)
@@ -143,7 +150,9 @@ class DocumentoTile extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
                   'PDF editado (${documento.resumenEdicion}); se modificó el archivo.',
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             const SizedBox(height: 8),
@@ -151,7 +160,7 @@ class DocumentoTile extends StatelessWidget {
               children: [
                 if (documento.sePuedeProcesar)
                   FilledButton.tonalIcon(
-                    onPressed: onProcesar,
+                    onPressed: puedeProcesar ? onProcesar : null,
                     icon: const Icon(Icons.play_arrow, size: 18),
                     label: const Text('Procesar'),
                   ),
@@ -165,10 +174,15 @@ class DocumentoTile extends StatelessWidget {
                     ),
                     label: const Text('Procesando...'),
                   ),
-                if (documento.estado == EstadoDocumento.completado && documento.datos != null) ...[
+                if (documento.estado == EstadoDocumento.completado &&
+                    documento.datos != null) ...[
                   const SizedBox(width: 8),
                   FilledButton.icon(
-                    onPressed: () => mostrarRevisionDatos(context, documento, alCambiar: onCambio),
+                    onPressed: () => mostrarRevisionDatos(
+                      context,
+                      documento,
+                      alCambiar: onCambio,
+                    ),
                     icon: const Icon(Icons.fact_check_outlined, size: 18),
                     label: const Text('Revisar datos'),
                   ),
@@ -178,7 +192,10 @@ class DocumentoTile extends StatelessWidget {
                   documento.registrado
                       ? FilledButton.icon(
                           onPressed: null,
-                          icon: const Icon(Icons.check_circle_outline, size: 18),
+                          icon: const Icon(
+                            Icons.check_circle_outline,
+                            size: 18,
+                          ),
                           label: const Text('Registrado'),
                         )
                       : FilledButton.icon(
@@ -197,7 +214,8 @@ class DocumentoTile extends StatelessWidget {
                 ],
               ],
             ),
-            if (documento.datosConfirmados && documento.datos != null) PanelCopiarDatos(documento: documento),
+            if (documento.datosConfirmados && documento.datos != null)
+              PanelCopiarDatos(documento: documento),
           ],
         ),
       ),

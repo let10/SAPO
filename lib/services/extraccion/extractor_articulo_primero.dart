@@ -56,7 +56,9 @@ class ExtractorArticuloPrimero {
     // Sin "SE RESUELVE" (un sello puede taparlo) no hay ancla: se elige, entre
     // las menciones de "artículo primero", la que parece el encabezado real del
     // artículo y no una cita dentro de los considerandos.
-    final primero = sr == null ? _mejorArticuloPrimeroSinAncla(texto) : _primerArticuloPrimero(texto, desde);
+    final primero = sr == null
+        ? _mejorArticuloPrimeroSinAncla(texto)
+        : _primerArticuloPrimero(texto, desde);
     if (primero == null) {
       avisos.add('No se encontró "ARTÍCULO PRIMERO".');
       return ResultadoArticulo(principal: '', completo: '', avisos: avisos);
@@ -70,7 +72,9 @@ class ExtractorArticuloPrimero {
       completo = texto.substring(inicioContenido, segundo.inicio);
     } else {
       completo = texto.substring(inicioContenido);
-      avisos.add('No se encontró "ARTÍCULO SEGUNDO": la extracción puede estar incompleta.');
+      avisos.add(
+        'No se encontró "ARTÍCULO SEGUNDO": la extracción puede estar incompleta.',
+      );
     }
     completo = CorrectorArticulo.corregir(completo.trim());
 
@@ -80,14 +84,22 @@ class ExtractorArticuloPrimero {
       avisos.add('El contenido del Artículo Primero está vacío.');
     } else {
       if (principal.length < 20) {
-        avisos.add('El párrafo principal es muy corto; puede estar incompleto.');
+        avisos.add(
+          'El párrafo principal es muy corto; puede estar incompleto.',
+        );
       }
       if (!RegExp(r'[.:;]$').hasMatch(principal)) {
-        avisos.add('El párrafo principal no termina en un signo de puntuación; puede estar incompleto.');
+        avisos.add(
+          'El párrafo principal no termina en un signo de puntuación; puede estar incompleto.',
+        );
       }
     }
 
-    return ResultadoArticulo(principal: principal, completo: completo, avisos: avisos);
+    return ResultadoArticulo(
+      principal: principal,
+      completo: completo,
+      avisos: avisos,
+    );
   }
 
   /// Localiza "SE RESUELVE" (con variaciones de OCR) que da paso a la parte
@@ -121,7 +133,11 @@ class ExtractorArticuloPrimero {
   static CoincidenciaDifusa? _primerArticuloPrimero(String texto, int desde) =>
       _buscarArticulo(texto, 'ARTICULOPRIMERO', desde);
 
-  static CoincidenciaDifusa? _buscarArticulo(String texto, String patron, int desde) {
+  static CoincidenciaDifusa? _buscarArticulo(
+    String texto,
+    String patron,
+    int desde,
+  ) {
     final m = buscarDifuso(texto, patron, maxDistancia: 2, desde: desde);
     return m.isEmpty ? null : m.first;
   }
@@ -138,8 +154,12 @@ class ExtractorArticuloPrimero {
       final fragmento = texto.substring(c.inicio, c.fin);
       if (fragmento == fragmento.toUpperCase()) puntaje += 2;
       final previo = texto.substring(0, c.inicio);
-      if (previo.substring(previo.lastIndexOf('\n') + 1).trim().length <= 6) puntaje += 1;
-      if (_buscarArticulo(texto, 'ARTICULOSEGUNDO', c.fin) != null) puntaje += 2;
+      if (previo.substring(previo.lastIndexOf('\n') + 1).trim().length <= 6) {
+        puntaje += 1;
+      }
+      if (_buscarArticulo(texto, 'ARTICULOSEGUNDO', c.fin) != null) {
+        puntaje += 2;
+      }
       puntaje -= c.distancia;
       if (puntaje >= mejor) {
         mejor = puntaje;
@@ -157,30 +177,54 @@ class ExtractorArticuloPrimero {
     return i;
   }
 
+  /// Líneas del texto con su posición real. Un salto CRLF ocupa dos caracteres;
+  /// contarlo como uno desplazaba el corte y recortaba el final del párrafo.
+  static List<({String texto, int inicio, int fin})> _lineas(String completo) {
+    final lineas = <({String texto, int inicio, int fin})>[];
+    var i = 0;
+    while (true) {
+      var j = i;
+      while (j < completo.length &&
+          completo[j] != '\n' &&
+          completo[j] != '\r') {
+        j++;
+      }
+      lineas.add((texto: completo.substring(i, j), inicio: i, fin: j));
+      if (j >= completo.length) break;
+      i =
+          completo[j] == '\r' &&
+              j + 1 < completo.length &&
+              completo[j + 1] == '\n'
+          ? j + 2
+          : j + 1;
+    }
+    return lineas;
+  }
+
   /// Separa el párrafo resolutivo principal del bloque de detalle posterior
   /// (cuadros de ingresos/egresos, datos de licencia, etc.).
   static String separarPrincipal(String completo) {
-    final lineas = completo.split(RegExp(r'\r\n|\r|\n'));
-    var offset = 0;
+    final lineas = _lineas(completo);
     var acumulado = 0; // caracteres de contenido previos a la línea actual
     var ultimoCaracter = '';
     int? corte;
 
-    for (var i = 0; i < lineas.length; i++) {
-      final linea = lineas[i];
+    for (final lineaPos in lineas) {
+      final linea = lineaPos.texto;
       final recortada = linea.trim();
       final norm = normalizarParaBusqueda(recortada);
-      final inicioLinea = offset;
-      final finLinea = offset + linea.length;
-      offset = finLinea + 1;
+      final inicioLinea = lineaPos.inicio;
+      final finLinea = lineaPos.fin;
 
       if (recortada.isEmpty) continue;
 
       final enPrincipal = acumulado >= _minimoPrincipal;
 
       // a) etiquetas de bloque estructurado
-      final esEtiqueta = _inicioBloqueConDosPuntos.any((r) => r.hasMatch(norm)) ||
-          (recortada.length <= 70 && _inicioBloqueLineaCorta.any((r) => r.hasMatch(norm)));
+      final esEtiqueta =
+          _inicioBloqueConDosPuntos.any((r) => r.hasMatch(norm)) ||
+          (recortada.length <= 70 &&
+              _inicioBloqueLineaCorta.any((r) => r.hasMatch(norm)));
       if (enPrincipal && esEtiqueta) {
         corte = inicioLinea;
         break;
@@ -194,7 +238,10 @@ class ExtractorArticuloPrimero {
 
       // Etiqueta corta con ":" después de una oración ya cerrada (p. ej. "REVISION:"):
       // pertenece a lo que sigue, no al párrafo principal.
-      if (enPrincipal && recortada.endsWith(':') && recortada.length < 30 && ultimoCaracter == '.') {
+      if (enPrincipal &&
+          recortada.endsWith(':') &&
+          recortada.length < 30 &&
+          ultimoCaracter == '.') {
         corte = inicioLinea;
         break;
       }
@@ -216,7 +263,8 @@ class ExtractorArticuloPrimero {
       // anterior termina en un signo de puntuación.
       for (final m in RegExp(r'\n[ \t]*\r?\n').allMatches(completo)) {
         if (m.start < _minimoPrincipal) continue;
-        if (RegExp(r'[.:;]$').hasMatch(completo.substring(0, m.start).trimRight())) {
+        if (RegExp(r'[.:;]$')
+            .hasMatch(completo.substring(0, m.start).trimRight())) {
           corte = m.start;
           break;
         }
@@ -229,10 +277,17 @@ class ExtractorArticuloPrimero {
   /// Una fila de cuadro está formada casi solo por importes/cifras; la prosa que
   /// menciona años o montos (`del 2026 hasta el 2027`) no cuenta.
   static bool _pareceFilaDeTabla(String linea) {
-    final tokens = linea.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+    final tokens = linea
+        .split(RegExp(r'\s+'))
+        .where((t) => t.isNotEmpty)
+        .toList();
     if (tokens.length < 2) return false;
     final numericos = tokens
-        .where((t) => RegExp(r'^(?:S/\.?|\$)$').hasMatch(t) || RegExp(r'^(?:S/\.?)?[\d.,]{3,}$').hasMatch(t))
+        .where(
+          (t) =>
+              RegExp(r'^(?:S/\.?|\$)$').hasMatch(t) ||
+              RegExp(r'^(?:S/\.?)?[\d.,]{3,}$').hasMatch(t),
+        )
         .length;
     return numericos >= 2 && numericos / tokens.length >= 0.7;
   }

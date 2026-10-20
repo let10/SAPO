@@ -16,8 +16,10 @@ class ResultadoRegistro {
 
   const ResultadoRegistro._(this.registrado, this.duplicado, this.documento);
 
-  const ResultadoRegistro.registrado(DocumentoAlmacenado d) : this._(true, false, d);
-  const ResultadoRegistro.duplicado(DocumentoAlmacenado existente) : this._(false, true, existente);
+  const ResultadoRegistro.registrado(DocumentoAlmacenado d)
+    : this._(true, false, d);
+  const ResultadoRegistro.duplicado(DocumentoAlmacenado existente)
+    : this._(false, true, existente);
 }
 
 /// Operaciones sobre la tabla `documentos`. Toda consulta SQL de la aplicación
@@ -27,7 +29,8 @@ class RepositorioDocumentos {
 
   RepositorioDocumentos(this._bd);
 
-  static String _normalizarTipo(String t) => t.replaceAll(RegExp(r'\s+'), ' ').trim().toUpperCase();
+  static String _normalizarTipo(String t) =>
+      t.replaceAll(RegExp(r'\s+'), ' ').trim().toUpperCase();
   static String _normalizarCodigo(String c) => c.trim();
 
   /// Guarda el documento si no hay otro con el mismo `tipo_documento` y
@@ -45,19 +48,30 @@ class RepositorioDocumentos {
         'INSERT INTO documentos '
         '(tipo_documento, nombre_completo, codigo, fecha_documento, articulo_primero, ruta_pdf, publicado, fecha_publicacion) '
         'VALUES (?, ?, ?, ?, ?, ?, 0, NULL)',
-        [tipo, d.nombreCompleto.trim(), codigo, d.fechaDocumento, d.articuloPrimero.trim(), d.rutaPdf],
+        [
+          tipo,
+          d.nombreCompleto.trim(),
+          codigo,
+          d.fechaDocumento,
+          d.articuloPrimero.trim(),
+          d.rutaPdf,
+        ],
       );
     } on SqliteException catch (e) {
       // El índice único es la defensa final si dos registros llegaran a la vez.
       final ya = _buscar(tipo, codigo);
       if (ya != null) return ResultadoRegistro.duplicado(ya);
-      throw StateError('No se pudo guardar el documento en la base de datos: ${e.message}');
+      throw StateError(
+        'No se pudo guardar el documento en la base de datos: ${e.message}',
+      );
     }
     return ResultadoRegistro.registrado(porId(_bd.conexion.lastInsertRowId)!);
   }
 
   DocumentoAlmacenado? porId(int id) {
-    final r = _bd.conexion.select('SELECT * FROM documentos WHERE id = ?', [id]);
+    final r = _bd.conexion.select('SELECT * FROM documentos WHERE id = ?', [
+      id,
+    ]);
     return r.isEmpty ? null : _desdeFila(r.first);
   }
 
@@ -65,35 +79,74 @@ class RepositorioDocumentos {
   /// Gerencia Municipal y 144 de una Subgerencia), indique [tipoDocumento].
   DocumentoAlmacenado? porCodigo(String codigo, {String? tipoDocumento}) {
     final r = tipoDocumento == null
-        ? _bd.conexion.select('SELECT * FROM documentos WHERE codigo = ? ORDER BY id LIMIT 1', [_normalizarCodigo(codigo)])
-        : _bd.conexion.select('SELECT * FROM documentos WHERE tipo_documento = ? AND codigo = ?',
-            [_normalizarTipo(tipoDocumento), _normalizarCodigo(codigo)]);
+        ? _bd.conexion.select(
+            'SELECT * FROM documentos WHERE codigo = ? ORDER BY id LIMIT 1',
+            [_normalizarCodigo(codigo)],
+          )
+        : _bd.conexion.select(
+            'SELECT * FROM documentos WHERE tipo_documento = ? AND codigo = ?',
+            [_normalizarTipo(tipoDocumento), _normalizarCodigo(codigo)],
+          );
     return r.isEmpty ? null : _desdeFila(r.first);
   }
 
-  bool existe(String tipoDocumento, String codigo) => _buscar(_normalizarTipo(tipoDocumento), _normalizarCodigo(codigo)) != null;
+  bool existe(String tipoDocumento, String codigo) =>
+      _buscar(_normalizarTipo(tipoDocumento), _normalizarCodigo(codigo)) !=
+      null;
 
-  /// Mantiene al día la ruta del PDF si el archivo se renombra después de
-  /// haberse registrado.
-  void actualizarRutaPdf(int id, String rutaPdf) {
-    _bd.conexion.execute('UPDATE documentos SET ruta_pdf = ? WHERE id = ?', [rutaPdf, id]);
+  /// Reemplaza los datos confirmados de un documento ya registrado (nombre,
+  /// código, fecha, artículo y ruta). No toca publicación ni fecha de registro.
+  /// Lanza [StateError] si otro registro ya usa el mismo tipo y código.
+  void actualizarDatosConfirmados(int id, DocumentoAlmacenado d) {
+    final tipo = _normalizarTipo(d.tipoDocumento);
+    final codigo = _normalizarCodigo(d.codigo);
+    final otro = _buscar(tipo, codigo);
+    if (otro != null && otro.id != id) {
+      throw StateError(
+        'Ya existe otro documento registrado con el mismo tipo y código.',
+      );
+    }
+    try {
+      _bd.conexion.execute(
+        'UPDATE documentos SET tipo_documento = ?, nombre_completo = ?, codigo = ?, '
+        'fecha_documento = ?, articulo_primero = ?, ruta_pdf = ? WHERE id = ?',
+        [
+          tipo,
+          d.nombreCompleto.trim(),
+          codigo,
+          d.fechaDocumento,
+          d.articuloPrimero.trim(),
+          d.rutaPdf,
+          id,
+        ],
+      );
+    } on SqliteException catch (e) {
+      throw StateError(
+        'No se pudo actualizar el documento en la base de datos: ${e.message}',
+      );
+    }
   }
 
   DocumentoAlmacenado? _buscar(String tipo, String codigo) {
-    final r = _bd.conexion.select('SELECT * FROM documentos WHERE tipo_documento = ? AND codigo = ?', [tipo, codigo]);
+    final r = _bd.conexion.select(
+      'SELECT * FROM documentos WHERE tipo_documento = ? AND codigo = ?',
+      [tipo, codigo],
+    );
     return r.isEmpty ? null : _desdeFila(r.first);
   }
 
   static DocumentoAlmacenado _desdeFila(Row f) => DocumentoAlmacenado(
-        id: f['id'] as int,
-        tipoDocumento: f['tipo_documento'] as String,
-        nombreCompleto: f['nombre_completo'] as String,
-        codigo: f['codigo'] as String,
-        fechaDocumento: f['fecha_documento'] as String,
-        articuloPrimero: f['articulo_primero'] as String,
-        rutaPdf: f['ruta_pdf'] as String,
-        publicado: (f['publicado'] as int) == 1,
-        fechaPublicacion: f['fecha_publicacion'] == null ? null : DateTime.parse(f['fecha_publicacion'] as String),
-        fechaRegistro: DateTime.parse(f['fecha_registro'] as String),
-      );
+    id: f['id'] as int,
+    tipoDocumento: f['tipo_documento'] as String,
+    nombreCompleto: f['nombre_completo'] as String,
+    codigo: f['codigo'] as String,
+    fechaDocumento: f['fecha_documento'] as String,
+    articuloPrimero: f['articulo_primero'] as String,
+    rutaPdf: f['ruta_pdf'] as String,
+    publicado: (f['publicado'] as int) == 1,
+    fechaPublicacion: f['fecha_publicacion'] == null
+        ? null
+        : DateTime.parse(f['fecha_publicacion'] as String),
+    fechaRegistro: DateTime.parse(f['fecha_registro'] as String),
+  );
 }

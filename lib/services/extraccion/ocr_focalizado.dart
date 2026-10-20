@@ -23,7 +23,8 @@ class _Paso {
   const _Paso(this.region, this.escala, this.preproceso, this.psm);
 
   @override
-  String toString() => '$region x${escala.toStringAsFixed(1)} ${preproceso.name} psm$psm';
+  String toString() =>
+      '$region x${escala.toStringAsFixed(1)} ${preproceso.name} psm$psm';
 }
 
 class _LineaOcr {
@@ -55,8 +56,8 @@ class OcrFocalizado {
   final RedesDominio? redes;
 
   OcrFocalizado({OcrService? ocr, RenderizadorPagina? render, this.redes})
-      : _ocr = ocr ?? OcrService(),
-        _render = render ?? RenderizadorPagina();
+    : _ocr = ocr ?? OcrService(),
+      _render = render ?? RenderizadorPagina();
 
   static const List<_Paso> _barrido = [
     _Paso(RegionPagina(0, 0, 1, 0.40), 3.5, Preproceso.gris, 6),
@@ -72,10 +73,18 @@ class OcrFocalizado {
     (8.0, Preproceso.binario),
   ];
 
-  final RegExp _anclaNumeroRe = RegExp(r'N\W{0,2}\s*[0-9OIL|]{1,4}\s*[-–—]\s*[2Z][0-9OQ]{3}');
-  final RegExp _finEncabezadoRe = RegExp(r'(?<![A-Z])(?:VISTOS?|CONSIDERANDO)(?![A-Z])');
-  final RegExp _simboloNRe = RegExp(r"^(?:N[A-Z°º*%'`´.¡“”" '"' r"]{0,2}\.?|№)$");
-  final RegExp _prefijoNRe = RegExp(r"^N[°º*%'`´.]{1,2}");
+  final RegExp _anclaNumeroRe = RegExp(
+    r"N(?:O\.?|[°º*%'`´.]{1,2}|\W{0,2})\s*[0-9OIL|]{1,4}\s*[-–—]\s*[2Z][0-9OQ]{3}",
+  );
+  final RegExp _finEncabezadoRe = RegExp(
+    r'(?<![A-Z])(?:VISTOS?|CONSIDERANDO)(?![A-Z])',
+  );
+  final RegExp _simboloNRe = RegExp(
+    r"^(?:N[A-Z°º*%'`´.¡“”"
+    '"'
+    r"]{0,2}\.?|№)$",
+  );
+  final RegExp _prefijoNRe = RegExp(r"^(?:NO\.|NO(?=\d)|N[°º*%'`´.]{1,2})");
 
   Future<ResultadoOcr> _leer(
     PdfPage pagina,
@@ -125,12 +134,30 @@ class OcrFocalizado {
     // barato y no depende de más pasadas de OCR).
     for (var i = 0; i < _barrido.length; i++) {
       final paso = _barrido[i];
-      progreso?.call('OCR focalizado del encabezado (${i + 1}/${_barrido.length})');
+      progreso?.call(
+        'OCR focalizado del encabezado (${i + 1}/${_barrido.length})',
+      );
       ImagenRenderizada? usada;
-      final r = await _leer(pagina, paso.region, paso.escala, paso.preproceso,
-          psm: paso.psm, conPalabras: true, etiqueta: 'enc', alTerminar: (im) => usada = im);
-      lecturas.add(LecturaTexto(r.texto, OrigenLectura.ocrFocalizado, config: 'barrido $paso'));
-      if (usada != null) _recolectarAnclas(r.palabras, usada!, anclasNumero, anclasFecha);
+      final r = await _leer(
+        pagina,
+        paso.region,
+        paso.escala,
+        paso.preproceso,
+        psm: paso.psm,
+        conPalabras: true,
+        etiqueta: 'enc',
+        alTerminar: (im) => usada = im,
+      );
+      lecturas.add(
+        LecturaTexto(
+          r.texto,
+          OrigenLectura.ocrFocalizado,
+          config: 'barrido $paso',
+        ),
+      );
+      if (usada != null) {
+        _recolectarAnclas(r.palabras, usada!, anclasNumero, anclasFecha);
+      }
       if (redes != null) {
         final zonas = _zonasDeAnclas(anclasNumero, anclasFecha);
         if (!numeroLeidoPorRed && zonas.numero != null) {
@@ -152,10 +179,21 @@ class OcrFocalizado {
       for (final ancla in tipo.$2.take(2)) {
         progreso?.call('OCR focalizado de la línea de ${tipo.$1}');
         for (final (escala, pre) in _variantesBanda) {
-          final r = await _leer(pagina, _banda(ancla.linea.caja), escala, pre,
-              psm: 7, etiqueta: 'lin');
-          lecturas.add(LecturaTexto(r.texto, OrigenLectura.ocrFocalizado,
-              config: 'línea ${tipo.$1} x$escala ${pre.name}'));
+          final r = await _leer(
+            pagina,
+            _banda(ancla.linea.caja),
+            escala,
+            pre,
+            psm: 7,
+            etiqueta: 'lin',
+          );
+          lecturas.add(
+            LecturaTexto(
+              r.texto,
+              OrigenLectura.ocrFocalizado,
+              config: 'línea ${tipo.$1} x$escala ${pre.name}',
+            ),
+          );
           if (esSuficiente(lecturas)) return lecturas;
         }
       }
@@ -171,10 +209,22 @@ class OcrFocalizado {
         (8.0, Preproceso.binario),
       ]) {
         for (final psm in [7, 8]) {
-          final r = await _leer(pagina, zona, escala, pre,
-              psm: psm, soloDigitos: true, etiqueta: 'num');
-          lecturas.add(LecturaTexto(r.texto, OrigenLectura.ocrSoloDigitos,
-              config: 'dígitos x$escala ${pre.name} psm$psm'));
+          final r = await _leer(
+            pagina,
+            zona,
+            escala,
+            pre,
+            psm: psm,
+            soloDigitos: true,
+            etiqueta: 'num',
+          );
+          lecturas.add(
+            LecturaTexto(
+              r.texto,
+              OrigenLectura.ocrSoloDigitos,
+              config: 'dígitos x$escala ${pre.name} psm$psm',
+            ),
+          );
           if (esSuficiente(lecturas)) return lecturas;
         }
       }
@@ -199,8 +249,12 @@ class OcrFocalizado {
     }
     for (final l in lineas) {
       if (limite != null && l.caja.abajo > limite + 0.002) continue;
-      if (_esAnclaNumero(l.texto)) _agregarAncla(anclasNumero, _Ancla(l, imagen));
-      if (_esAnclaFecha(l.texto)) _agregarAncla(anclasFecha, _Ancla(l, imagen));
+      if (_esAnclaNumero(l.texto)) {
+        _agregarAncla(anclasNumero, _Ancla(l, imagen));
+      }
+      if (_esAnclaFecha(l.texto)) {
+        _agregarAncla(anclasFecha, _Ancla(l, imagen));
+      }
     }
   }
 
@@ -210,15 +264,28 @@ class OcrFocalizado {
   Future<ZonasEncabezado> localizarZonas(PdfPage pagina) async {
     final paso = _barrido.first;
     ImagenRenderizada? usada;
-    final r = await _leer(pagina, paso.region, paso.escala, paso.preproceso,
-        psm: paso.psm, conPalabras: true, etiqueta: 'zon', alTerminar: (im) => usada = im);
+    final r = await _leer(
+      pagina,
+      paso.region,
+      paso.escala,
+      paso.preproceso,
+      psm: paso.psm,
+      conPalabras: true,
+      etiqueta: 'zon',
+      alTerminar: (im) => usada = im,
+    );
     final anclasNumero = <_Ancla>[];
     final anclasFecha = <_Ancla>[];
-    if (usada != null) _recolectarAnclas(r.palabras, usada!, anclasNumero, anclasFecha);
+    if (usada != null) {
+      _recolectarAnclas(r.palabras, usada!, anclasNumero, anclasFecha);
+    }
     return _zonasDeAnclas(anclasNumero, anclasFecha);
   }
 
-  ZonasEncabezado _zonasDeAnclas(List<_Ancla> anclasNumero, List<_Ancla> anclasFecha) {
+  ZonasEncabezado _zonasDeAnclas(
+    List<_Ancla> anclasNumero,
+    List<_Ancla> anclasFecha,
+  ) {
     RegionPagina? numero;
     for (final a in anclasNumero) {
       numero = _zonaNumeroTinta(a);
@@ -236,43 +303,90 @@ class OcrFocalizado {
   /// separa en tres dígitos y los clasifica con la red de números. Siempre
   /// devuelve una lectura; si no pudo leer, el texto queda vacío y [config]
   /// dice por qué (se ve con `--diag`).
-  Future<LecturaTexto> _leerNumeroConRed(PdfPage pagina, RegionPagina zona) async {
+  Future<LecturaTexto> _leerNumeroConRed(
+    PdfPage pagina,
+    RegionPagina zona,
+  ) async {
     try {
-      final color = await _render.renderizarColor(pagina, region: zona, escala: 8.0);
+      final color = await _render.renderizarColor(
+        pagina,
+        region: zona,
+        escala: 8.0,
+      );
       final tinta = SeparadorTinta.tintaAzul(color);
-      final digitos = SegmentadorComponentes.segmentar(tinta, cantidadEsperada: 3);
+      final digitos = SegmentadorComponentes.segmentar(
+        tinta,
+        cantidadEsperada: 3,
+      );
       if (digitos.length != 3) {
-        return LecturaTexto('', OrigenLectura.redNeuronal,
-            config: 'red de números: ${digitos.length} manchas de tinta azul (se esperaban 3: número impreso o ilegible)');
+        return LecturaTexto(
+          '',
+          OrigenLectura.redNeuronal,
+          config:
+              'red de números: ${digitos.length} manchas de tinta azul (se esperaban 3: número impreso o ilegible)',
+        );
       }
-      return _clasificar(redes!.numero, digitos, OrigenLectura.redNeuronal, 'red de números (3 dígitos)');
+      return _clasificar(
+        redes!.numero,
+        digitos,
+        OrigenLectura.redNeuronal,
+        'red de números (3 dígitos)',
+      );
     } catch (e) {
-      return LecturaTexto('', OrigenLectura.redNeuronal, config: 'red de números: error: $e');
+      return LecturaTexto(
+        '',
+        OrigenLectura.redNeuronal,
+        config: 'red de números: error: $e',
+      );
     }
   }
 
   /// Lee el día del sello: separa los dígitos de la zona del sello y clasifica
   /// los dos primeros (el día) con la red del sello. El mes y el año los sigue
   /// leyendo el OCR.
-  Future<LecturaTexto> _leerSelloConRed(PdfPage pagina, RegionPagina zona) async {
+  Future<LecturaTexto> _leerSelloConRed(
+    PdfPage pagina,
+    RegionPagina zona,
+  ) async {
     try {
-      final color = await _render.renderizarColor(pagina, region: zona, escala: 8.0);
+      final color = await _render.renderizarColor(
+        pagina,
+        region: zona,
+        escala: 8.0,
+      );
       final tinta = SeparadorTinta.tintaOscura(color);
       final manchas = SegmentadorComponentes.segmentar(tinta);
       // Un sello tiene unas 9-10 manchas (día, mes y año); con muchas más es
       // una fecha mecanografiada, que Tesseract ya lee bien.
       if (manchas.length < 3 || manchas.length > 11) {
-        return LecturaTexto('', OrigenLectura.redSello,
-            config: 'red del sello: ${manchas.length} manchas (no parece un sello de fecha)');
+        return LecturaTexto(
+          '',
+          OrigenLectura.redSello,
+          config:
+              'red del sello: ${manchas.length} manchas (no parece un sello de fecha)',
+        );
       }
-      return _clasificar(redes!.sello, manchas.take(2).toList(), OrigenLectura.redSello,
-          'red del sello (día, ${manchas.length} manchas)');
+      return _clasificar(
+        redes!.sello,
+        manchas.take(2).toList(),
+        OrigenLectura.redSello,
+        'red del sello (día, ${manchas.length} manchas)',
+      );
     } catch (e) {
-      return LecturaTexto('', OrigenLectura.redSello, config: 'red del sello: error: $e');
+      return LecturaTexto(
+        '',
+        OrigenLectura.redSello,
+        config: 'red del sello: error: $e',
+      );
     }
   }
 
-  LecturaTexto _clasificar(RedDigitos red, List<DigitoSegmentado> digitos, OrigenLectura origen, String config) {
+  LecturaTexto _clasificar(
+    RedDigitos red,
+    List<DigitoSegmentado> digitos,
+    OrigenLectura origen,
+    String config,
+  ) {
     final sb = StringBuffer();
     final probabilidades = <List<double>>[];
     for (final d in digitos) {
@@ -284,16 +398,24 @@ class OcrFocalizado {
       sb.write(mejor);
       probabilidades.add(p.toList());
     }
-    return LecturaTexto(sb.toString(), origen, config: config, probabilidades: probabilidades);
+    return LecturaTexto(
+      sb.toString(),
+      origen,
+      config: config,
+      probabilidades: probabilidades,
+    );
   }
 
-  final RegExp _citaRe = RegExp(r'INFORME|OFICIO|MEMORANDO|SOLICITUD|DE FECHA|PROVEIDO|EXPEDIENTE|CARTA N');
+  final RegExp _citaRe = RegExp(
+    r'INFORME|OFICIO|MEMORANDO|SOLICITUD|DE FECHA|PROVEIDO|EXPEDIENTE|CARTA N',
+  );
 
   /// "VISTOS", "VISTO" o "CONSIDERANDO" (aunque un sello tape alguna letra).
   bool _esFinEncabezado(_LineaOcr linea) {
     final n = normalizarParaBusqueda(linea.texto);
     if (_finEncabezadoRe.hasMatch(n)) return true;
-    final primera = normalizarParaBusqueda(linea.palabras.first.texto).replaceAll(RegExp(r'[^A-Z]'), '');
+    final primera = normalizarParaBusqueda(linea.palabras.first.texto)
+        .replaceAll(RegExp(r'[^A-Z]'), '');
     if (primera.length < 4) return false;
     return distanciaLevenshtein(primera, 'VISTOS', maximo: 1) <= 1 ||
         distanciaLevenshtein(primera, 'VISTO', maximo: 1) <= 1 ||
@@ -324,7 +446,9 @@ class OcrFocalizado {
     final fin = a.abajo < b.abajo ? a.abajo : b.abajo;
     final inter = fin - ini;
     if (inter <= 0) return 0;
-    final menor = (a.abajo - a.arriba) < (b.abajo - b.arriba) ? (a.abajo - a.arriba) : (b.abajo - b.arriba);
+    final menor = (a.abajo - a.arriba) < (b.abajo - b.arriba)
+        ? (a.abajo - a.arriba)
+        : (b.abajo - b.arriba);
     return menor <= 0 ? 0 : inter / menor;
   }
 
@@ -339,15 +463,19 @@ class OcrFocalizado {
   }
 
   double _fx(int px, ImagenRenderizada im) =>
-      im.region.izquierda + ((px - im.margen) / im.ancho) * (im.region.derecha - im.region.izquierda);
+      im.region.izquierda +
+      ((px - im.margen) / im.ancho) * (im.region.derecha - im.region.izquierda);
 
   double _fy(int py, ImagenRenderizada im) =>
-      im.region.arriba + ((py - im.margen) / im.alto) * (im.region.abajo - im.region.arriba);
+      im.region.arriba +
+      ((py - im.margen) / im.alto) * (im.region.abajo - im.region.arriba);
 
   List<_LineaOcr> _lineas(List<PalabraOcr> palabras, ImagenRenderizada im) {
     final grupos = <String, List<PalabraOcr>>{};
     for (final p in palabras) {
-      grupos.putIfAbsent('${p.bloque}.${p.parrafo}.${p.linea}', () => []).add(p);
+      grupos
+          .putIfAbsent('${p.bloque}.${p.parrafo}.${p.linea}', () => [])
+          .add(p);
     }
     final lineas = <_LineaOcr>[];
     for (final g in grupos.values) {
@@ -360,11 +488,13 @@ class OcrFocalizado {
         if (p.izquierda + p.ancho > der) der = p.izquierda + p.ancho;
         if (p.arriba + p.alto > aba) aba = p.arriba + p.alto;
       }
-      lineas.add(_LineaOcr(
-        g,
-        g.map((p) => p.texto).join(' '),
-        RegionPagina(_fx(izq, im), _fy(arr, im), _fx(der, im), _fy(aba, im)),
-      ));
+      lineas.add(
+        _LineaOcr(
+          g,
+          g.map((p) => p.texto).join(' '),
+          RegionPagina(_fx(izq, im), _fy(arr, im), _fx(der, im), _fy(aba, im)),
+        ),
+      );
     }
     return lineas;
   }
@@ -404,8 +534,10 @@ class OcrFocalizado {
   RegionPagina? _zonaSello(_Ancla ancla) {
     final palabras = ancla.linea.palabras;
     final k = palabras.indexWhere((p) {
-      final t = normalizarParaBusqueda(p.texto).replaceAll(RegExp(r'[^A-Z]'), '');
-      return t.length >= 6 && distanciaLevenshtein(t, 'POCOLLAY', maximo: 2) <= 2;
+      final t = normalizarParaBusqueda(p.texto)
+          .replaceAll(RegExp(r'[^A-Z]'), '');
+      return t.length >= 6 &&
+          distanciaLevenshtein(t, 'POCOLLAY', maximo: 2) <= 2;
     });
     if (k < 0) return null;
     final im = ancla.imagen;
@@ -426,7 +558,9 @@ class OcrFocalizado {
     );
   }
 
-  ({int izq, int der, PalabraOcr guion, ImagenRenderizada im})? _limitesNumero(_Ancla ancla) {
+  ({int izq, int der, PalabraOcr guion, ImagenRenderizada im})? _limitesNumero(
+    _Ancla ancla,
+  ) {
     final palabras = ancla.linea.palabras;
     final k = palabras.indexWhere((p) => RegExp(r'[-–—]').hasMatch(p.texto));
     if (k < 0) return null;

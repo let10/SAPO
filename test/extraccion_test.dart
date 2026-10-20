@@ -42,11 +42,14 @@ void main() {
       expect(NormalizadorNumero.normalizar('000').requiereRevision, isTrue);
     });
 
-    test('más de tres cifras significativas no se recorta y requiere revisión', () {
-      final n = NormalizadorNumero.normalizar('1234');
-      expect(n.valor, '1234');
-      expect(n.requiereRevision, isTrue);
-    });
+    test(
+      'más de tres cifras significativas no se recorta y requiere revisión',
+      () {
+        final n = NormalizadorNumero.normalizar('1234');
+        expect(n.valor, '1234');
+        expect(n.requiereRevision, isTrue);
+      },
+    );
 
     test('no numérico requiere revisión', () {
       expect(NormalizadorNumero.normalizar('O+4').requiereRevision, isTrue);
@@ -63,65 +66,100 @@ void main() {
   group('Siglas, código y nombre', () {
     test('normaliza siglas', () {
       expect(NormalizadorSiglas.normalizar('A-MDP/T'), 'A-MDP-T');
-      expect(NormalizadorSiglas.normalizar('SGDELC-GDESGA-MDP/T'), 'SGDELC-GDESGA-MDP-T');
+      expect(
+        NormalizadorSiglas.normalizar('SGDELC-GDESGA-MDP/T'),
+        'SGDELC-GDESGA-MDP-T',
+      );
       expect(NormalizadorSiglas.normalizar('gm - mdp / t'), 'GM-MDP-T');
     });
 
     test('genera el código', () {
-      expect(GeneradorNombre.generarCodigo('50', '2026', 'SGDELC-GDESGA-MDP/T'),
-          '050-2026-SGDELC-GDESGA-MDP-T');
-      expect(GeneradorNombre.generarCodigo('74', '2026', 'A-MDP/T'), '074-2026-A-MDP-T');
+      expect(
+        GeneradorNombre.generarCodigo('50', '2026', 'SGDELC-GDESGA-MDP/T'),
+        '050-2026-SGDELC-GDESGA-MDP-T',
+      );
+      expect(
+        GeneradorNombre.generarCodigo('74', '2026', 'A-MDP/T'),
+        '074-2026-A-MDP-T',
+      );
     });
 
     test('genera el nombre completo', () {
       final tipo = CatalogoResoluciones.porSiglas('SGDELC-GDESGA-MDP-T')!;
       expect(
-        GeneradorNombre.generarNombreCompleto(tipo, '050-2026-SGDELC-GDESGA-MDP-T'),
+        GeneradorNombre.generarNombreCompleto(
+          tipo,
+          '050-2026-SGDELC-GDESGA-MDP-T',
+        ),
         'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO ECONÓMICO, LICENCIAS Y CONTROL N° 050-2026-SGDELC-GDESGA-MDP-T',
       );
       expect(
         GeneradorNombre.generarNombreCompleto(
-            CatalogoResoluciones.porSiglas('A-MDP-T')!, '074-2026-A-MDP-T'),
+          CatalogoResoluciones.porSiglas('A-MDP-T')!,
+          '074-2026-A-MDP-T',
+        ),
         'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP-T',
       );
     });
 
     test('catálogo cubre las siete equivalencias', () {
       expect(CatalogoResoluciones.tipos.length, 7);
-      expect(CatalogoResoluciones.porSiglas('GM-MDP-T')!.nombre, 'RESOLUCIÓN DE GERENCIA MUNICIPAL');
-      expect(CatalogoResoluciones.porSiglas('OGA-MDP-T')!.nombre,
-          'RESOLUCIÓN DE LA OFICINA GENERAL DE ADMINISTRACIÓN');
-      expect(CatalogoResoluciones.porSiglas('GDTI-MDP-T')!.nombre,
-          'RESOLUCIÓN DE GERENCIA DE DESARROLLO TERRITORIAL E INFRAESTRUCTURA');
-      expect(CatalogoResoluciones.porSiglas('SGDT-GDTI-MDP-T')!.nombre,
-          'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO TERRITORIAL');
+      expect(
+        CatalogoResoluciones.porSiglas('GM-MDP-T')!.nombre,
+        'RESOLUCIÓN DE GERENCIA MUNICIPAL',
+      );
+      expect(
+        CatalogoResoluciones.porSiglas('OGA-MDP-T')!.nombre,
+        'RESOLUCIÓN DE LA OFICINA GENERAL DE ADMINISTRACIÓN',
+      );
+      expect(
+        CatalogoResoluciones.porSiglas('GDTI-MDP-T')!.nombre,
+        'RESOLUCIÓN DE GERENCIA DE DESARROLLO TERRITORIAL E INFRAESTRUCTURA',
+      );
+      expect(
+        CatalogoResoluciones.porSiglas('SGDT-GDTI-MDP-T')!.nombre,
+        'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO TERRITORIAL',
+      );
     });
 
     test('tipo por texto del encabezado (sin confundir subgerencia con gerencia)', () {
-      expect(CatalogoResoluciones.porTexto('RESOLUCIÓN DE ALCALDÍA N° 074')!.siglas, 'A-MDP-T');
       expect(
-          CatalogoResoluciones.porTexto(
-                  'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO TERRITORIAL\nN° 012-2026')!
-              .siglas,
-          'SGDT-GDTI-MDP-T');
+        CatalogoResoluciones.porTexto('RESOLUCIÓN DE ALCALDÍA N° 074')!.siglas,
+        'A-MDP-T',
+      );
       expect(
-          CatalogoResoluciones.porTexto(
-                  'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO ECONÓMICO, LICENCIAS Y CONTROL')!
-              .siglas,
-          'SGDELC-GDESGA-MDP-T');
+        CatalogoResoluciones.porTexto(
+          'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO TERRITORIAL\nN° 012-2026',
+        )!.siglas,
+        'SGDT-GDTI-MDP-T',
+      );
       expect(
-          CatalogoResoluciones.porTexto(
-                  'RESOLUCION DE GERENCIA DE DESARROLLO TERRITORIAL E INFRAESTRUCTURA')!
-              .siglas,
-          'GDTI-MDP-T');
-      expect(CatalogoResoluciones.porTexto('RESOLUCION DE ALCALDIA'), isNotNull);
+        CatalogoResoluciones.porTexto(
+          'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO ECONÓMICO, LICENCIAS Y CONTROL',
+        )!.siglas,
+        'SGDELC-GDESGA-MDP-T',
+      );
+      expect(
+        CatalogoResoluciones.porTexto(
+          'RESOLUCION DE GERENCIA DE DESARROLLO TERRITORIAL E INFRAESTRUCTURA',
+        )!.siglas,
+        'GDTI-MDP-T',
+      );
+      expect(
+        CatalogoResoluciones.porTexto('RESOLUCION DE ALCALDIA'),
+        isNotNull,
+      );
       expect(CatalogoResoluciones.porTexto('INFORME TÉCNICO'), isNull);
     });
   });
 
   group('Fechas', () {
     String? una(String t, {int? anio}) {
-      final v = ExtractorFecha.extraer(t, anioReferencia: anio, ahora: 2026).where((f) => f.valida);
+      final v = ExtractorFecha.extraer(
+        t,
+        anioReferencia: anio,
+        ahora: 2026,
+      ).where((f) => f.valida);
       return v.isEmpty ? null : v.first.normalizada;
     }
 
@@ -139,7 +177,10 @@ void main() {
     test('lecturas OCR dudosas no se convierten silenciosamente', () {
       expect(una('0 g JUL. 2076'), isNull);
       expect(una('4 5 JUN, 2076'), isNull);
-      expect(ExtractorFecha.lecturaDudosa('Pocollay, 0 g JUL. 2076'), contains('JUL'));
+      expect(
+        ExtractorFecha.lecturaDudosa('Pocollay, 0 g JUL. 2076'),
+        contains('JUL'),
+      );
     });
 
     test('valida día, mes calendario y año de referencia', () {
@@ -159,8 +200,9 @@ void main() {
   group('Encabezado', () {
     test('lee código limpio y normaliza (caso subgerencia, número 50)', () {
       final c = ExtractorEncabezado.extraer(
-          'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO ECONÓMICO, LICENCIAS Y CONTROL\nN° 50-2026-SGDELC-GDESGA-MDP/T',
-          ahora: 2026);
+        'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO ECONÓMICO, LICENCIAS Y CONTROL\nN° 50-2026-SGDELC-GDESGA-MDP/T',
+        ahora: 2026,
+      );
       expect(c, hasLength(1));
       expect(c.first.numero, '50');
       expect(c.first.numeroReparado, isFalse);
@@ -170,57 +212,102 @@ void main() {
     });
 
     test('lee código limpio (caso alcaldía 074)', () {
-      final c = ExtractorEncabezado.extraer('RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T', ahora: 2026);
+      final c = ExtractorEncabezado.extraer(
+        'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T',
+        ahora: 2026,
+      );
       expect(c.first.numero, '074');
       expect(c.first.siglas, 'A-MDP-T');
     });
 
     test('número mal leído se repara pero queda marcado como no limpio', () {
-      final c = ExtractorEncabezado.extraer('RESOLUCIÓN DE ALCALDÍA N° O+4-2026-A-MDP/T', ahora: 2026);
+      final c = ExtractorEncabezado.extraer(
+        'RESOLUCIÓN DE ALCALDÍA N° O+4-2026-A-MDP/T',
+        ahora: 2026,
+      );
       expect(c.first.numeroCrudo, 'O+4');
       expect(c.first.numero, '074');
       expect(c.first.numeroReparado, isTrue);
       expect(c.first.limpio, isFalse);
 
-      final d = ExtractorEncabezado.extraer('N° OY 4-2026-A-MDP/T', ahora: 2026);
+      final d = ExtractorEncabezado.extraer(
+        'N° OY 4-2026-A-MDP/T',
+        ahora: 2026,
+      );
       expect(d.first.numero, '074');
       expect(d.first.numeroReparado, isTrue);
     });
 
     test('acepta N*, N%, No. y MDP/T', () {
       for (final n in ['N*', 'N%', 'No.', 'N°']) {
-        final c = ExtractorEncabezado.extraer('RESOLUCIÓN DE ALCALDÍA $n 117-2026-A-MDP/T', ahora: 2026);
+        final c = ExtractorEncabezado.extraer(
+          'RESOLUCIÓN DE ALCALDÍA $n 117-2026-A-MDP/T',
+          ahora: 2026,
+        );
         expect(c.first.numero, '117', reason: n);
       }
     });
 
+    test('acepta Nº, NO. y No, también si No. va pegado al número', () {
+      for (final n in ['Nº', 'NO.', 'No']) {
+        final c = ExtractorEncabezado.extraer(
+          'RESOLUCIÓN DE ALCALDÍA $n 117-2026-A-MDP/T',
+          ahora: 2026,
+        );
+        expect(c.first.numero, '117', reason: n);
+        expect(c.first.numeroReparado, isFalse, reason: n);
+      }
+      for (final n in ['No.117', 'NO.117']) {
+        final c = ExtractorEncabezado.extraer(
+          'RESOLUCIÓN DE ALCALDÍA $n-2026-A-MDP/T',
+          ahora: 2026,
+        );
+        expect(c.first.numero, '117', reason: n);
+        expect(c.first.numeroReparado, isFalse, reason: n);
+      }
+    });
+
     test('símbolo N° mal leído pegado al número (N148, NS48, Ne48, N“48)', () {
-      final ambiguo = ExtractorEncabezado.extraer('N148-2026-SGDELC-GDESGA-MDP/T', ahora: 2026).first;
+      final ambiguo = ExtractorEncabezado.extraer(
+        'N148-2026-SGDELC-GDESGA-MDP/T',
+        ahora: 2026,
+      ).first;
       expect(ambiguo.numero, '148');
       expect(ambiguo.numeroReparado, isTrue);
       for (final n in ['NS48', 'Ne48', 'NT48', 'N“48', 'N¡48', 'N°48']) {
-        final c = ExtractorEncabezado.extraer('$n-2026-SGDELC-GDESGA-MDP/T', ahora: 2026).first;
+        final c = ExtractorEncabezado.extraer(
+          '$n-2026-SGDELC-GDESGA-MDP/T',
+          ahora: 2026,
+        ).first;
         expect(c.numero, '48', reason: n);
         expect(c.numeroReparado, isFalse, reason: n);
       }
     });
 
-    test('número con cero a la izquierda (N° 0121) se lee y normaliza a 121', () {
-      final c = ExtractorEncabezado.extraer(
+    test(
+      'número con cero a la izquierda (N° 0121) se lee y normaliza a 121',
+      () {
+        final c = ExtractorEncabezado.extraer(
           'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO TERRITORIAL N° 0121-2026-SGDT-GDTI-MDP-T',
-          ahora: 2026);
-      expect(c.first.numero, '0121');
-      expect(NormalizadorNumero.normalizar(c.first.numero!).valor, '121');
-    });
+          ahora: 2026,
+        );
+        expect(c.first.numero, '0121');
+        expect(NormalizadorNumero.normalizar(c.first.numero!).valor, '121');
+      },
+    );
 
     test('símbolo N° leído como letra y separado del número (NE 61)', () {
-      final c = ExtractorEncabezado.extraer('RESOLUCIÓN DE GERENCIA MUNICIPAL NE 61 -2026-GM-MDP/T', ahora: 2026);
+      final c = ExtractorEncabezado.extraer(
+        'RESOLUCIÓN DE GERENCIA MUNICIPAL NE 61 -2026-GM-MDP/T',
+        ahora: 2026,
+      );
       expect(c.first.numero, '61');
       expect(c.first.numeroReparado, isFalse);
     });
 
     test('el código solo se busca antes de la línea "Pocollay,"', () {
-      const t = 'RESOLUCIÓN DE ALCALDÍA\nNo. ___ -2026-A-MDP/T\nPocollay, 08 JUL. 2026\n'
+      const t =
+          'RESOLUCIÓN DE ALCALDÍA\nNo. ___ -2026-A-MDP/T\nPocollay, 08 JUL. 2026\n'
           'Que, mediante Resolución N° 113-2026-A-MDP/T se dispuso';
       expect(ExtractorEncabezado.seccionCodigo(t), isNot(contains('113')));
       final r = ConsolidadorEncabezado.consolidar([
@@ -230,7 +317,8 @@ void main() {
     });
 
     test('quita el membrete repetido de las páginas de continuación', () {
-      const pagina2 = 'Año de la esperanza\nRESOLUCIÓN DE SUB GERENCIA DE DESARROLLO TERRITORIAL\n'
+      const pagina2 =
+          'Año de la esperanza\nRESOLUCIÓN DE SUB GERENCIA DE DESARROLLO TERRITORIAL\n'
           'N° 0111-2026-SGDT-GDTI-MDP-T GROUP S.A.C, ubicado en la avenida.\nARTÍCULO SEGUNDO: NOTIFICAR.';
       final r = ExtractorEncabezado.quitarMembrete(pagina2);
       expect(r, startsWith('GROUP S.A.C'));
@@ -238,13 +326,16 @@ void main() {
     });
 
     test('no quita texto si el código hallado es de un documento citado', () {
-      const pagina = 'Que, mediante Informe N° 093-2026-A-MDP/T de fecha 08 de junio se dispone lo siguiente.';
+      const pagina =
+          'Que, mediante Informe N° 093-2026-A-MDP/T de fecha 08 de junio se dispone lo siguiente.';
       expect(ExtractorEncabezado.quitarMembrete(pagina), pagina);
     });
 
     test('un artículo que cruza de página no se corta por el membrete', () {
-      const p1 = 'SE RESUELVE:\nARTÍCULO PRIMERO: DECLARAR PROCEDENTE el procedimiento solicitado por la Sra. SONIA, en calidad de representante legal de EDVAL';
-      const p2 = 'RESOLUCIÓN DE ALCALDÍA\nNo. 074-2026-A-MDP/T GROUP S.A.C, en el distrito de Pocollay.\nARTÍCULO SEGUNDO: NOTIFICAR.';
+      const p1 =
+          'SE RESUELVE:\nARTÍCULO PRIMERO: DECLARAR PROCEDENTE el procedimiento solicitado por la Sra. SONIA, en calidad de representante legal de EDVAL';
+      const p2 =
+          'RESOLUCIÓN DE ALCALDÍA\nNo. 074-2026-A-MDP/T GROUP S.A.C, en el distrito de Pocollay.\nARTÍCULO SEGUNDO: NOTIFICAR.';
       final cuerpo = [p1, ExtractorEncabezado.quitarMembrete(p2)].join('\n');
       final r = ExtractorArticuloPrimero.extraer(cuerpo);
       expect(r.principal, endsWith('GROUP S.A.C, en el distrito de Pocollay.'));
@@ -257,16 +348,26 @@ void main() {
     });
 
     test('siglas desconocidas o aproximadas', () {
-      final a = ExtractorEncabezado.extraer('N° 012-2026-SGDELC-MDP/T', ahora: 2026).first;
+      final a = ExtractorEncabezado.extraer(
+        'N° 012-2026-SGDELC-MDP/T',
+        ahora: 2026,
+      ).first;
       expect(a.siglasConocidas, isFalse);
-      final b = ExtractorEncabezado.extraer('N° 012-2026-A-MDP/1', ahora: 2026).first;
+      final b = ExtractorEncabezado.extraer(
+        'N° 012-2026-A-MDP/1',
+        ahora: 2026,
+      ).first;
       expect(b.siglas, 'A-MDP-T');
       expect(b.siglasAproximadas, isTrue);
     });
 
     test('el encabezado excluye las resoluciones citadas en los considerandos', () {
-      const t = 'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T\nVISTO:\nQue, mediante Resolución de Gerencia Municipal N° 045-2025-GM-MDP/T';
-      final c = ExtractorEncabezado.extraer(ExtractorEncabezado.seccionEncabezado(t), ahora: 2026);
+      const t =
+          'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T\nVISTO:\nQue, mediante Resolución de Gerencia Municipal N° 045-2025-GM-MDP/T';
+      final c = ExtractorEncabezado.extraer(
+        ExtractorEncabezado.seccionEncabezado(t),
+        ahora: 2026,
+      );
       expect(c, hasLength(1));
       expect(c.first.numero, '074');
     });
@@ -323,22 +424,30 @@ Ubicado en: Calle Los Pinos 123
 ARTÍCULO SEGUNDO: NOTIFICAR.
 ''';
       final r = ExtractorArticuloPrimero.extraer(t);
-      expect(r.principal,
-          'APROBAR LICENCIA DE FUNCIONAMIENTO, a favor de Juan Pérez, cuyas especificaciones se detallan a continuación:');
+      expect(
+        r.principal,
+        'APROBAR LICENCIA DE FUNCIONAMIENTO, a favor de Juan Pérez, cuyas especificaciones se detallan a continuación:',
+      );
       expect(r.completo, contains('LA ESQUINA'));
     });
 
-    test('corta antes del bloque aunque el párrafo no termine en dos puntos', () {
-      const t = '''
+    test(
+      'corta antes del bloque aunque el párrafo no termine en dos puntos',
+      () {
+        const t = '''
 SE RESUELVE
 ÁRTICULO PRIMERO: APROBAR LICENCIA DE FUNCIONAMIENTO por el plazo indefinido a favor del administrado.
 Se Otorga Licencia a: MARIA LOPEZ
 Nombre Comercial: TIENDA
 ARTICULO SEGUNDO: NOTIFICAR.
 ''';
-      final r = ExtractorArticuloPrimero.extraer(t);
-      expect(r.principal, 'APROBAR LICENCIA DE FUNCIONAMIENTO por el plazo indefinido a favor del administrado.');
-    });
+        final r = ExtractorArticuloPrimero.extraer(t);
+        expect(
+          r.principal,
+          'APROBAR LICENCIA DE FUNCIONAMIENTO por el plazo indefinido a favor del administrado.',
+        );
+      },
+    );
 
     test('la prosa con años y montos no se confunde con un cuadro', () {
       const t = '''
@@ -357,7 +466,10 @@ ARTÍCULO PRIMERO: RECONOCER el pago a favor del proveedor, correspondiente a la
 SERVICIO N* 6504-2025 del 2025, por el monto de S/ 1,400.00 (MIL CUATROCIENTOS soles).
 ARTÍCULO SEGUNDO: NOTIFICAR.
 ''';
-      expect(ExtractorArticuloPrimero.extraer(t2).principal, endsWith('(MIL CUATROCIENTOS soles).'));
+      expect(
+        ExtractorArticuloPrimero.extraer(t2).principal,
+        endsWith('(MIL CUATROCIENTOS soles).'),
+      );
     });
 
     test('una etiqueta suelta con ":" tras una oración cerrada no pertenece al párrafo', () {
@@ -385,35 +497,60 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
       expect(r.completo, contains('120,000.00'));
     });
 
+    test('un salto CRLF no recorta el final del párrafo', () {
+      const lf = '''
+SE RESUELVE:
+ARTÍCULO PRIMERO: AUTORIZAR, la incorporación de Mayores Ingresos Públicos
+mediante Crédito Suplementario, de acuerdo con el siguiente detalle:
+INGRESOS
+PLIEGO 120,000.00
+ARTÍCULO SEGUNDO: NOTIFICAR.
+''';
+      final conLf = ExtractorArticuloPrimero.extraer(lf);
+      final conCrlf = ExtractorArticuloPrimero.extraer(
+        lf.replaceAll('\n', '\r\n'),
+      );
+      expect(conCrlf.principal, conLf.principal);
+      expect(conCrlf.principal, endsWith('detalle:'));
+    });
+
     test('tolera variaciones OCR de SE RESUELVE y ARTÍCULO PRIMERO', () {
-      const t = 'CONSIDERANDO: algo.\nSE RESUELV E:\nARTICUL0 PRIMERO.- DECLARAR procedente la solicitud presentada por el administrado.\nARTICULO SEGUNDO.- NOTIFICAR.';
+      const t =
+          'CONSIDERANDO: algo.\nSE RESUELV E:\nARTICUL0 PRIMERO.- DECLARAR procedente la solicitud presentada por el administrado.\nARTICULO SEGUNDO.- NOTIFICAR.';
       final r = ExtractorArticuloPrimero.extraer(t);
       expect(r.principal, startsWith('DECLARAR procedente'));
     });
 
     test('marca revisión si falta SE RESUELVE o ARTÍCULO PRIMERO', () {
-      expect(ExtractorArticuloPrimero.extraer('texto sin nada relevante').requiereRevision, isTrue);
-      final r = ExtractorArticuloPrimero.extraer('SE RESUELVE:\nartículo único: algo');
+      expect(
+        ExtractorArticuloPrimero.extraer('texto sin nada relevante')
+            .requiereRevision,
+        isTrue,
+      );
+      final r = ExtractorArticuloPrimero.extraer(
+        'SE RESUELVE:\nartículo único: algo',
+      );
       expect(r.requiereRevision, isTrue);
     });
 
     test('marca revisión si no hay ARTÍCULO SEGUNDO', () {
       final r = ExtractorArticuloPrimero.extraer(
-          'SE RESUELVE:\nARTÍCULO PRIMERO: AUTORIZAR el gasto indicado en el expediente administrativo.');
+        'SE RESUELVE:\nARTÍCULO PRIMERO: AUTORIZAR el gasto indicado en el expediente administrativo.',
+      );
       expect(r.principal, startsWith('AUTORIZAR'));
       expect(r.requiereRevision, isTrue);
     });
   });
 
   group('Consolidación y validación', () {
-    const encabezadoLimpio = 'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO ECONÓMICO, LICENCIAS Y CONTROL\n'
+    const encabezadoLimpio =
+        'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO ECONÓMICO, LICENCIAS Y CONTROL\n'
         'N° 50-2026-SGDELC-GDESGA-MDP/T\nPocollay, 16 JUN. 2026\nVISTO: ...';
 
     test('texto nativo limpio → todo DETECTADO', () {
-      final r = ConsolidadorEncabezado.consolidar(
-        [const LecturaTexto(encabezadoLimpio, OrigenLectura.nativo)],
-        ahora: 2026,
-      );
+      final r = ConsolidadorEncabezado.consolidar([
+        const LecturaTexto(encabezadoLimpio, OrigenLectura.nativo),
+      ], ahora: 2026);
       expect(r.numero, '050');
       expect(r.estadoNumero, EstadoCampo.detectado);
       expect(r.fecha, '16/06/2026');
@@ -421,19 +558,25 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
       expect(r.tipo!.siglas, 'SGDELC-GDESGA-MDP-T');
 
       final datos = ValidadorCampos.construir(
-          r, const ResultadoArticulo(principal: 'AUTORIZAR, algo.', completo: 'AUTORIZAR, algo.'));
+        r,
+        const ResultadoArticulo(
+          principal: 'AUTORIZAR, algo.',
+          completo: 'AUTORIZAR, algo.',
+        ),
+      );
       expect(datos.codigo.valor, '050-2026-SGDELC-GDESGA-MDP-T');
-      expect(datos.nombreCompleto.valor,
-          'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO ECONÓMICO, LICENCIAS Y CONTROL N° 050-2026-SGDELC-GDESGA-MDP-T');
+      expect(
+        datos.nombreCompleto.valor,
+        'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO ECONÓMICO, LICENCIAS Y CONTROL N° 050-2026-SGDELC-GDESGA-MDP-T',
+      );
       expect(datos.fecha.valor, '16/06/2026');
       expect(datos.camposPorRevisar, 0);
     });
 
     test('una sola lectura OCR no basta: requiere revisión', () {
-      final r = ConsolidadorEncabezado.consolidar(
-        [const LecturaTexto(encabezadoLimpio, OrigenLectura.ocrPagina)],
-        ahora: 2026,
-      );
+      final r = ConsolidadorEncabezado.consolidar([
+        const LecturaTexto(encabezadoLimpio, OrigenLectura.ocrPagina),
+      ], ahora: 2026);
       expect(r.numero, '050');
       expect(r.estadoNumero, EstadoCampo.requiereRevision);
       expect(r.estadoFecha, EstadoCampo.requiereRevision);
@@ -450,19 +593,31 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
       expect(r.estadoSiglas, EstadoCampo.detectado);
     });
 
-    test('dos lecturas OCR coincidentes + otra página: número también DETECTADO', () {
-      final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto(encabezadoLimpio, OrigenLectura.ocrPagina),
-        const LecturaTexto(encabezadoLimpio, OrigenLectura.ocrFocalizado),
-        const LecturaTexto('N° 50-2026-SGDELC-GDESGA-MDP/T', OrigenLectura.otraPagina),
-      ], ahora: 2026);
-      expect(r.estadoNumero, EstadoCampo.detectado);
-    });
+    test(
+      'dos lecturas OCR coincidentes + otra página: número también DETECTADO',
+      () {
+        final r = ConsolidadorEncabezado.consolidar([
+          const LecturaTexto(encabezadoLimpio, OrigenLectura.ocrPagina),
+          const LecturaTexto(encabezadoLimpio, OrigenLectura.ocrFocalizado),
+          const LecturaTexto(
+            'N° 50-2026-SGDELC-GDESGA-MDP/T',
+            OrigenLectura.otraPagina,
+          ),
+        ], ahora: 2026);
+        expect(r.estadoNumero, EstadoCampo.detectado);
+      },
+    );
 
     test('número mal leído por solo dos lecturas: no se propone y REQUIERE REVISIÓN', () {
       final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('RESOLUCIÓN DE ALCALDÍA N° O+4-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('RESOLUCIÓN DE ALCALDÍA N° OY 4-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
+        const LecturaTexto(
+          'RESOLUCIÓN DE ALCALDÍA N° O+4-2026-A-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
+        const LecturaTexto(
+          'RESOLUCIÓN DE ALCALDÍA N° OY 4-2026-A-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
       ], ahora: 2026);
       expect(r.numero, isNull);
       expect(r.estadoNumero, EstadoCampo.requiereRevision);
@@ -472,24 +627,48 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
     test('una lectura limpia corroborada por reparadas, todas de OCR de texto: '
         'propone el número pero REQUIERE REVISIÓN (falta corroboración independiente)', () {
       final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('RESOLUCIÓN DE ALCALDÍA N° O+4-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('RESOLUCIÓN DE ALCALDÍA N° OY 4-2026-A-MDP/T', OrigenLectura.ocrPagina),
+        const LecturaTexto(
+          'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
+        const LecturaTexto(
+          'RESOLUCIÓN DE ALCALDÍA N° O+4-2026-A-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
+        const LecturaTexto(
+          'RESOLUCIÓN DE ALCALDÍA N° OY 4-2026-A-MDP/T',
+          OrigenLectura.ocrPagina,
+        ),
       ], ahora: 2026);
       expect(r.numero, '074');
       expect(r.estadoNumero, EstadoCampo.requiereRevision);
     });
 
-    test('una lectura limpia corroborada por reparadas + otra página → DETECTADO', () {
-      final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('RESOLUCIÓN DE ALCALDÍA N° O+4-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('RESOLUCIÓN DE ALCALDÍA N° OY 4-2026-A-MDP/T', OrigenLectura.ocrPagina),
-        const LecturaTexto('Resolución N° 074-2026-A-MDP/T', OrigenLectura.otraPagina),
-      ], ahora: 2026);
-      expect(r.numero, '074');
-      expect(r.estadoNumero, EstadoCampo.detectado);
-    });
+    test(
+      'una lectura limpia corroborada por reparadas + otra página → DETECTADO',
+      () {
+        final r = ConsolidadorEncabezado.consolidar([
+          const LecturaTexto(
+            'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T',
+            OrigenLectura.ocrFocalizado,
+          ),
+          const LecturaTexto(
+            'RESOLUCIÓN DE ALCALDÍA N° O+4-2026-A-MDP/T',
+            OrigenLectura.ocrFocalizado,
+          ),
+          const LecturaTexto(
+            'RESOLUCIÓN DE ALCALDÍA N° OY 4-2026-A-MDP/T',
+            OrigenLectura.ocrPagina,
+          ),
+          const LecturaTexto(
+            'Resolución N° 074-2026-A-MDP/T',
+            OrigenLectura.otraPagina,
+          ),
+        ], ahora: 2026);
+        expect(r.numero, '074');
+        expect(r.estadoNumero, EstadoCampo.detectado);
+      },
+    );
 
     test('lecturas distintas del número → conflicto, REQUIERE REVISIÓN', () {
       final r = ConsolidadorEncabezado.consolidar([
@@ -502,8 +681,14 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
 
     test('el encabezado de otras páginas corrobora el número', () {
       final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('Resolución N° 074-2026-A-MDP/T', OrigenLectura.otraPagina),
+        const LecturaTexto(
+          'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
+        const LecturaTexto(
+          'Resolución N° 074-2026-A-MDP/T',
+          OrigenLectura.otraPagina,
+        ),
       ], ahora: 2026);
       expect(r.estadoNumero, EstadoCampo.detectado);
     });
@@ -511,15 +696,24 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
     test('un código citado en otra página con otras siglas/año no cuenta', () {
       final r = ConsolidadorEncabezado.consolidar([
         const LecturaTexto('N° 074-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('Resolución N° 045-2025-GM-MDP/T', OrigenLectura.otraPagina),
+        const LecturaTexto(
+          'Resolución N° 045-2025-GM-MDP/T',
+          OrigenLectura.otraPagina,
+        ),
       ], ahora: 2026);
       expect(r.numero, '074');
     });
 
     test('año del sello leído mal (2076): se propone con el año del código pero REQUIERE REVISIÓN', () {
       final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('N° 074-2026-A-MDP/T\nPocollay, 0 8 JUL. 2076', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('N° 074-2026-A-MDP/T\nPocollay, 0 8 JUL. 7076', OrigenLectura.ocrFocalizado),
+        const LecturaTexto(
+          'N° 074-2026-A-MDP/T\nPocollay, 0 8 JUL. 2076',
+          OrigenLectura.ocrFocalizado,
+        ),
+        const LecturaTexto(
+          'N° 074-2026-A-MDP/T\nPocollay, 0 8 JUL. 7076',
+          OrigenLectura.ocrFocalizado,
+        ),
       ], ahora: 2026);
       expect(r.fecha, '08/07/2026');
       expect(r.estadoFecha, EstadoCampo.requiereRevision);
@@ -529,8 +723,9 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
     test('la fecha que sigue a "Pocollay," prevalece sobre fechas citadas', () {
       final r = ConsolidadorEncabezado.consolidar([
         const LecturaTexto(
-            'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T\nPocollay, 30 de junio del 2026\nSolicitud s/n de fecha 03 de junio del 2026',
-            OrigenLectura.nativo),
+          'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP/T\nPocollay, 30 de junio del 2026\nSolicitud s/n de fecha 03 de junio del 2026',
+          OrigenLectura.nativo,
+        ),
       ], ahora: 2026);
       expect(r.fecha, '30/06/2026');
       expect(r.estadoFecha, EstadoCampo.detectado);
@@ -539,22 +734,28 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
     test('sin "Pocollay," se usa la primera fecha no citada, pero solo como sugerencia', () {
       final r = ConsolidadorEncabezado.consolidar([
         const LecturaTexto(
-            'N° 074-2026-A-MDP/T\n08 JUL. 2026\nde fecha 03 de junio del 2026', OrigenLectura.nativo),
+          'N° 074-2026-A-MDP/T\n08 JUL. 2026\nde fecha 03 de junio del 2026',
+          OrigenLectura.nativo,
+        ),
       ], ahora: 2026);
       expect(r.fecha, '08/07/2026');
       expect(r.estadoFecha, EstadoCampo.requiereRevision);
       expect(r.notaFecha, contains('Pocollay'));
     });
 
-    test('solo fechas citadas ("de fecha …") y ninguna fecha propia → sin fecha', () {
-      final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto(
+    test(
+      'solo fechas citadas ("de fecha …") y ninguna fecha propia → sin fecha',
+      () {
+        final r = ConsolidadorEncabezado.consolidar([
+          const LecturaTexto(
             'N° 074-2026-A-MDP/T\nSolicitud s/n de fecha 03 de junio del 2026, informe de fecha 24 de junio de 2026',
-            OrigenLectura.nativo),
-      ], ahora: 2026);
-      expect(r.fecha, isNull);
-      expect(r.estadoFecha, EstadoCampo.requiereRevision);
-    });
+            OrigenLectura.nativo,
+          ),
+        ], ahora: 2026);
+        expect(r.fecha, isNull);
+        expect(r.estadoFecha, EstadoCampo.requiereRevision);
+      },
+    );
 
     test('caso real: sello "30 JUN 2076" frente a fechas citadas en los VISTOS (sin cortar)', () {
       const lectura =
@@ -570,31 +771,44 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
       expect(r.fecha, isNot('24/06/2026'));
     });
 
-    test('el encabezado se corta en VISTOS (plural) y no toma códigos citados', () {
-      final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto(
+    test(
+      'el encabezado se corta en VISTOS (plural) y no toma códigos citados',
+      () {
+        final r = ConsolidadorEncabezado.consolidar([
+          const LecturaTexto(
             'RESOLUCIÓN DE ALCALDÍA\nNo. 074-2026-A-MDP/T\nPocollay, 08 JUL. 2026\nVISTOS:\nEl Informe N° 0576-2026-OGPPMPI/MDP-T de fecha 06 de julio del 2026',
-            OrigenLectura.nativo),
-      ], ahora: 2026);
-      expect(r.numero, '074');
-      expect(r.fecha, '08/07/2026');
-      expect(r.siglas, 'A-MDP-T');
-    });
+            OrigenLectura.nativo,
+          ),
+        ], ahora: 2026);
+        expect(r.numero, '074');
+        expect(r.fecha, '08/07/2026');
+        expect(r.siglas, 'A-MDP-T');
+      },
+    );
 
-    test('lecturas débiles del número no se proponen (manuscrito ilegible)', () {
-      final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('N° O+4-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('N° OT-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('5', OrigenLectura.ocrSoloDigitos),
-      ], ahora: 2026);
-      expect(r.estadoNumero, EstadoCampo.requiereRevision);
-      expect(r.numero, isNull);
-    });
+    test(
+      'lecturas débiles del número no se proponen (manuscrito ilegible)',
+      () {
+        final r = ConsolidadorEncabezado.consolidar([
+          const LecturaTexto(
+            'N° O+4-2026-A-MDP/T',
+            OrigenLectura.ocrFocalizado,
+          ),
+          const LecturaTexto('N° OT-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
+          const LecturaTexto('5', OrigenLectura.ocrSoloDigitos),
+        ], ahora: 2026);
+        expect(r.estadoNumero, EstadoCampo.requiereRevision);
+        expect(r.numero, isNull);
+      },
+    );
 
     test('tres lecturas dudosas coincidentes sí se proponen, pero REQUIEREN REVISIÓN', () {
       final r = ConsolidadorEncabezado.consolidar([
         const LecturaTexto('No. O+4-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('No. OY 4-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
+        const LecturaTexto(
+          'No. OY 4-2026-A-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
         const LecturaTexto('No. O+4-2026-A-MDP/T', OrigenLectura.ocrPagina),
       ], ahora: 2026);
       expect(r.numero, '074');
@@ -603,51 +817,86 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
 
     test('número manuscrito: una lectura ilegible impide darlo por detectado aunque otras coincidan', () {
       final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('No. 074 -2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('No. 074 -2026-A-MDP/T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('Resolución N° 074-2026-A-MDP/T', OrigenLectura.otraPagina),
-        const LecturaTexto('No. O3 Y-2026-A-MDP/T', OrigenLectura.ocrFocalizado),
+        const LecturaTexto(
+          'No. 074 -2026-A-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
+        const LecturaTexto(
+          'No. 074 -2026-A-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
+        const LecturaTexto(
+          'Resolución N° 074-2026-A-MDP/T',
+          OrigenLectura.otraPagina,
+        ),
+        const LecturaTexto(
+          'No. O3 Y-2026-A-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
       ], ahora: 2026);
       expect(r.numero, '074');
       expect(r.estadoNumero, EstadoCampo.requiereRevision);
       expect(r.notaNumero, contains('ilegibles'));
     });
 
-    test('fecha: una lectura inválida del sello impide darla por detectada', () {
-      const ok = 'N° 074-2026-A-MDP/T\nPocollay, 08 JUL. 2026';
-      final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto(ok, OrigenLectura.ocrFocalizado),
-        const LecturaTexto(ok, OrigenLectura.ocrFocalizado),
-        const LecturaTexto('N° 074-2026-A-MDP/T\nPocollay, 41 JUL. 2026', OrigenLectura.ocrFocalizado),
-      ], ahora: 2026);
-      expect(r.fecha, '08/07/2026');
-      expect(r.estadoFecha, EstadoCampo.requiereRevision);
-    });
+    test(
+      'fecha: una lectura inválida del sello impide darla por detectada',
+      () {
+        const ok = 'N° 074-2026-A-MDP/T\nPocollay, 08 JUL. 2026';
+        final r = ConsolidadorEncabezado.consolidar([
+          const LecturaTexto(ok, OrigenLectura.ocrFocalizado),
+          const LecturaTexto(ok, OrigenLectura.ocrFocalizado),
+          const LecturaTexto(
+            'N° 074-2026-A-MDP/T\nPocollay, 41 JUL. 2026',
+            OrigenLectura.ocrFocalizado,
+          ),
+        ], ahora: 2026);
+        expect(r.fecha, '08/07/2026');
+        expect(r.estadoFecha, EstadoCampo.requiereRevision);
+      },
+    );
 
     test('fecha: si el ancla "Pocollay," no da nada utilizable, se usa la primera fecha propia (débil)', () {
       final r = ConsolidadorEncabezado.consolidar([
         const LecturaTexto(
-            'N° 097-2026-A-MDP/T\nPocollay, ###\n31 de agosto del 2026', OrigenLectura.ocrFocalizado),
+          'N° 097-2026-A-MDP/T\nPocollay, ###\n31 de agosto del 2026',
+          OrigenLectura.ocrFocalizado,
+        ),
       ], ahora: 2026);
       expect(r.fecha, isNotNull);
       expect(r.estadoFecha, EstadoCampo.requiereRevision);
     });
 
-    test('siglas con una lectura limpia y otra aproximada → DETECTADO '
-        '(el número, sin corroboración independiente, queda REQUIERE REVISIÓN)', () {
-      final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('N° 0121-2026-SGDT-GDTI-MDP-T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('N° 0121-2026-SGDI-GDTI-MDP-T', OrigenLectura.ocrFocalizado),
-        const LecturaTexto('N° 0121-2026-SGDT-GDTI-MDP-T', OrigenLectura.ocrPagina),
-      ], ahora: 2026);
-      expect(r.estadoSiglas, EstadoCampo.detectado);
-      expect(r.numero, '121');
-      expect(r.estadoNumero, EstadoCampo.requiereRevision);
-    });
+    test(
+      'siglas con una lectura limpia y otra aproximada → DETECTADO '
+      '(el número, sin corroboración independiente, queda REQUIERE REVISIÓN)',
+      () {
+        final r = ConsolidadorEncabezado.consolidar([
+          const LecturaTexto(
+            'N° 0121-2026-SGDT-GDTI-MDP-T',
+            OrigenLectura.ocrFocalizado,
+          ),
+          const LecturaTexto(
+            'N° 0121-2026-SGDI-GDTI-MDP-T',
+            OrigenLectura.ocrFocalizado,
+          ),
+          const LecturaTexto(
+            'N° 0121-2026-SGDT-GDTI-MDP-T',
+            OrigenLectura.ocrPagina,
+          ),
+        ], ahora: 2026);
+        expect(r.estadoSiglas, EstadoCampo.detectado);
+        expect(r.numero, '121');
+        expect(r.estadoNumero, EstadoCampo.requiereRevision);
+      },
+    );
 
     test('fecha con lectura OCR inválida no se inventa', () {
       final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('N° 074-2026-A-MDP/T\nPocollay, 0 g JUL. 2076', OrigenLectura.ocrFocalizado),
+        const LecturaTexto(
+          'N° 074-2026-A-MDP/T\nPocollay, 0 g JUL. 2076',
+          OrigenLectura.ocrFocalizado,
+        ),
       ], ahora: 2026);
       expect(r.fecha, isNull);
       expect(r.estadoFecha, EstadoCampo.requiereRevision);
@@ -656,11 +905,16 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
 
     test('sin número: código con marcador visible y REQUIERE REVISIÓN', () {
       final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('RESOLUCIÓN DE ALCALDÍA N° ___-2026-A-MDP/T', OrigenLectura.nativo),
+        const LecturaTexto(
+          'RESOLUCIÓN DE ALCALDÍA N° ___-2026-A-MDP/T',
+          OrigenLectura.nativo,
+        ),
       ], ahora: 2026);
       expect(r.numero, isNull);
       final d = ValidadorCampos.construir(
-          r, const ResultadoArticulo(principal: 'AUTORIZAR, algo.', completo: 'x'));
+        r,
+        const ResultadoArticulo(principal: 'AUTORIZAR, algo.', completo: 'x'),
+      );
       expect(d.codigo.valor, '___-2026-A-MDP-T');
       expect(d.codigo.estado, EstadoCampo.requiereRevision);
       expect(d.nombreCompleto.estado, EstadoCampo.requiereRevision);
@@ -676,23 +930,39 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
 
     test('tipo del texto distinto del de las siglas → REQUIERE REVISIÓN', () {
       final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('RESOLUCIÓN DE GERENCIA MUNICIPAL N° 074-2026-A-MDP/T', OrigenLectura.nativo),
+        const LecturaTexto(
+          'RESOLUCIÓN DE GERENCIA MUNICIPAL N° 074-2026-A-MDP/T',
+          OrigenLectura.nativo,
+        ),
       ], ahora: 2026);
       expect(r.estadoTipo, EstadoCampo.requiereRevision);
     });
   });
 
   group('Redes neuronales en la votación', () {
-    List<double> p(int d, double c) => [for (var i = 0; i < 10; i++) i == d ? c : (1 - c) / 9];
-    LecturaTexto red(String t, double porDigito, [OrigenLectura o = OrigenLectura.redNeuronal]) =>
-        LecturaTexto(t, o, probabilidades: [for (final c in t.split('')) p(int.parse(c), porDigito)]);
+    List<double> p(int d, double c) => [
+      for (var i = 0; i < 10; i++) i == d ? c : (1 - c) / 9,
+    ];
+    LecturaTexto red(
+      String t,
+      double porDigito, [
+      OrigenLectura o = OrigenLectura.redNeuronal,
+    ]) => LecturaTexto(
+      t,
+      o,
+      probabilidades: [for (final c in t.split('')) p(int.parse(c), porDigito)],
+    );
 
-    const limpia = 'RESOLUCIÓN DE GERENCIA MUNICIPAL\nNo. 146 -2026-GM-MDP/T\nPocollay, 02 OCT. 2026';
+    const limpia =
+        'RESOLUCIÓN DE GERENCIA MUNICIPAL\nNo. 146 -2026-GM-MDP/T\nPocollay, 02 OCT. 2026';
 
     test('la red y una lectura de texto coinciden → DETECTADO aunque otra lectura sea basura', () {
       final r = ConsolidadorEncabezado.consolidar([
         const LecturaTexto(limpia, OrigenLectura.ocrFocalizado),
-        const LecturaTexto('RESOLUCIÓN DE GERENCIA MUNICIPAL\nNo. O3 Y-2026-GM-MDP/T', OrigenLectura.ocrFocalizado),
+        const LecturaTexto(
+          'RESOLUCIÓN DE GERENCIA MUNICIPAL\nNo. O3 Y-2026-GM-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
         red('146', 0.98),
       ], ahora: 2026);
       expect(r.numero, '146');
@@ -701,22 +971,31 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
 
     test('la red sola propone el número pero REQUIERE REVISIÓN', () {
       final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto('RESOLUCIÓN DE GERENCIA MUNICIPAL\nNo. -2026-GM-MDP/T', OrigenLectura.ocrFocalizado),
+        const LecturaTexto(
+          'RESOLUCIÓN DE GERENCIA MUNICIPAL\nNo. -2026-GM-MDP/T',
+          OrigenLectura.ocrFocalizado,
+        ),
         red('146', 0.98),
       ], ahora: 2026);
       expect(r.numero, '146');
       expect(r.estadoNumero, EstadoCampo.requiereRevision);
     });
 
-    test('una lectura errónea repetida de Tesseract no tapa a la red neuronal', () {
-      final r = ConsolidadorEncabezado.consolidar([
-        for (var i = 0; i < 4; i++)
-          const LecturaTexto('RESOLUCIÓN DE GERENCIA MUNICIPAL\nNo. 046 -2026-GM-MDP/T', OrigenLectura.ocrFocalizado),
-        red('146', 0.98),
-      ], ahora: 2026);
-      expect(r.numero, '146');
-      expect(r.estadoNumero, EstadoCampo.requiereRevision);
-    });
+    test(
+      'una lectura errónea repetida de Tesseract no tapa a la red neuronal',
+      () {
+        final r = ConsolidadorEncabezado.consolidar([
+          for (var i = 0; i < 4; i++)
+            const LecturaTexto(
+              'RESOLUCIÓN DE GERENCIA MUNICIPAL\nNo. 046 -2026-GM-MDP/T',
+              OrigenLectura.ocrFocalizado,
+            ),
+          red('146', 0.98),
+        ], ahora: 2026);
+        expect(r.numero, '146');
+        expect(r.estadoNumero, EstadoCampo.requiereRevision);
+      },
+    );
 
     test('la red que ve otra cosa que Tesseract impide el DETECTADO', () {
       final r = ConsolidadorEncabezado.consolidar([
@@ -727,17 +1006,21 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
       expect(r.estadoNumero, EstadoCampo.requiereRevision);
     });
 
-    const sello = 'RESOLUCIÓN DE GERENCIA MUNICIPAL\nNo. 146 -2026-GM-MDP/T\nPocollay, 07 OCT. 2076';
+    const sello =
+        'RESOLUCIÓN DE GERENCIA MUNICIPAL\nNo. 146 -2026-GM-MDP/T\nPocollay, 07 OCT. 2076';
 
-    test('día del sello: la red corrige al OCR con confianza alta → DETECTADO', () {
-      final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto(sello, OrigenLectura.ocrFocalizado),
-        const LecturaTexto(sello, OrigenLectura.ocrFocalizado),
-        red('02', 0.97, OrigenLectura.redSello),
-      ], ahora: 2026);
-      expect(r.fecha, '02/10/2026');
-      expect(r.estadoFecha, EstadoCampo.detectado);
-    });
+    test(
+      'día del sello: la red corrige al OCR con confianza alta → DETECTADO',
+      () {
+        final r = ConsolidadorEncabezado.consolidar([
+          const LecturaTexto(sello, OrigenLectura.ocrFocalizado),
+          const LecturaTexto(sello, OrigenLectura.ocrFocalizado),
+          red('02', 0.97, OrigenLectura.redSello),
+        ], ahora: 2026);
+        expect(r.fecha, '02/10/2026');
+        expect(r.estadoFecha, EstadoCampo.detectado);
+      },
+    );
 
     test('día del sello: la red coincide con el OCR → DETECTADO', () {
       final r = ConsolidadorEncabezado.consolidar([
@@ -748,16 +1031,19 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
       expect(r.estadoFecha, EstadoCampo.detectado);
     });
 
-    test('día del sello: confianza media → se propone pero REQUIERE REVISIÓN', () {
-      final r = ConsolidadorEncabezado.consolidar([
-        const LecturaTexto(sello, OrigenLectura.ocrFocalizado),
-        const LecturaTexto(sello, OrigenLectura.ocrFocalizado),
-        red('02', 0.8, OrigenLectura.redSello),
-      ], ahora: 2026);
-      expect(r.fecha, '02/10/2026');
-      expect(r.estadoFecha, EstadoCampo.requiereRevision);
-      expect(r.notaFecha, contains('red neuronal'));
-    });
+    test(
+      'día del sello: confianza media → se propone pero REQUIERE REVISIÓN',
+      () {
+        final r = ConsolidadorEncabezado.consolidar([
+          const LecturaTexto(sello, OrigenLectura.ocrFocalizado),
+          const LecturaTexto(sello, OrigenLectura.ocrFocalizado),
+          red('02', 0.8, OrigenLectura.redSello),
+        ], ahora: 2026);
+        expect(r.fecha, '02/10/2026');
+        expect(r.estadoFecha, EstadoCampo.requiereRevision);
+        expect(r.notaFecha, contains('red neuronal'));
+      },
+    );
 
     test('día del sello: confianza baja → se ignora', () {
       final r = ConsolidadorEncabezado.consolidar([
