@@ -42,23 +42,34 @@ class ExtractorArticuloPrimero {
 
   static const int _minimoPrincipal = 40;
 
-  static ResultadoArticulo extraer(String texto) {
+  static ResultadoArticulo extraer(String texto, {bool anclaAcuerdo = false}) {
     final avisos = <String>[];
     var desde = 0;
 
-    final sr = _localizarSeResuelve(texto);
-    if (sr == null) {
-      avisos.add('No se encontró "SE RESUELVE".');
+    if (anclaAcuerdo) {
+      final marca = _localizarAcuerdoOperativo(texto);
+      if (marca == null) {
+        avisos.add('No se encontró el bloque "ACUERDO:".');
+        return ResultadoArticulo(principal: '', completo: '', avisos: avisos);
+      }
+      desde = marca.fin;
     } else {
-      desde = sr.fin;
+      final sr = _localizarSeResuelve(texto);
+      if (sr == null) {
+        avisos.add('No se encontró "SE RESUELVE".');
+      } else {
+        desde = sr.fin;
+      }
     }
 
-    // Sin "SE RESUELVE" (un sello puede taparlo) no hay ancla: se elige, entre
-    // las menciones de "artículo primero", la que parece el encabezado real del
-    // artículo y no una cita dentro de los considerandos.
-    final primero = sr == null
-        ? _mejorArticuloPrimeroSinAncla(texto)
-        : _primerArticuloPrimero(texto, desde);
+    // Sin ancla (no hubo "SE RESUELVE") se elige la mención que parece el
+    // encabezado real. Con ancla —"SE RESUELVE" o el bloque "ACUERDO:"— solo
+    // vale el primer ARTÍCULO PRIMERO que viene después.
+    final hayAncla =
+        anclaAcuerdo || !avisos.any((a) => a.contains('SE RESUELVE'));
+    final primero = hayAncla
+        ? _primerArticuloPrimero(texto, desde)
+        : _mejorArticuloPrimeroSinAncla(texto);
     if (primero == null) {
       avisos.add('No se encontró "ARTÍCULO PRIMERO".');
       return ResultadoArticulo(principal: '', completo: '', avisos: avisos);
@@ -128,6 +139,41 @@ class ExtractorArticuloPrimero {
       }
     }
     return mejor;
+  }
+
+  /// Bloque operativo "ACUERDO:" (no el título "ACUERDO DE CONCEJO…" ni una
+  /// cita "Acuerdo de Concejo"). Exige dos puntos, o un ARTÍCULO PRIMERO
+  /// cercano, para no anclar en una mención suelta.
+  static CoincidenciaDifusa? _localizarAcuerdoOperativo(String texto) {
+    final candidatos = buscarDifuso(texto, 'ACUERDO', maxDistancia: 1);
+    CoincidenciaDifusa? mejor;
+    var mejorPuntaje = 2;
+    for (final c in candidatos) {
+      if (_palabraSiguiente(texto, c.fin) == 'DE') continue;
+      var puntaje = 0;
+      if (_cierraConPuntuacion(texto, c.fin)) puntaje += 2;
+      final previo = texto.substring(0, c.inicio);
+      final ultimoSalto = previo.lastIndexOf('\n');
+      if (previo.substring(ultimoSalto + 1).trim().isEmpty) puntaje += 1;
+      final seguido = _buscarArticulo(texto, 'ARTICULOPRIMERO', c.fin);
+      if (seguido != null && seguido.inicio - c.fin < 500) puntaje += 3;
+      puntaje -= c.distancia;
+      if (puntaje > mejorPuntaje) {
+        mejorPuntaje = puntaje;
+        mejor = c;
+      }
+    }
+    return mejor;
+  }
+
+  static String? _palabraSiguiente(String texto, int fin) {
+    final resto = normalizarParaBusqueda(texto.substring(fin));
+    return RegExp(r'^[^A-Z]*([A-Z]+)').firstMatch(resto)?.group(1);
+  }
+
+  static bool _cierraConPuntuacion(String texto, int fin) {
+    final hasta = fin + 6 > texto.length ? texto.length : fin + 6;
+    return RegExp(r'^\s*[:;.]').hasMatch(texto.substring(fin, hasta));
   }
 
   static CoincidenciaDifusa? _primerArticuloPrimero(String texto, int desde) =>

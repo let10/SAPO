@@ -7,14 +7,25 @@ class TipoResolucion {
   /// Nombre oficial normalizado, p. ej. `RESOLUCIÓN DE ALCALDÍA`.
   final String nombre;
 
-  /// Núcleo de la denominación (sin "RESOLUCIÓN DE"), en mayúsculas sin tildes.
+  /// Núcleo de la denominación (sin el prefijo), en mayúsculas sin tildes.
   final String nucleoTexto;
 
-  const TipoResolucion(this.siglas, this.nombre, this.nucleoTexto);
+  /// Lo que antecede al núcleo, en mayúsculas sin tildes. Las resoluciones
+  /// usan `RESOLUCION DE` y admiten un "LA" intermedio.
+  final String prefijoTitulo;
+
+  const TipoResolucion(
+    this.siglas,
+    this.nombre,
+    this.nucleoTexto, {
+    this.prefijoTitulo = 'RESOLUCION DE',
+  });
 
   RegExp get _patron {
     final palabras = nucleoTexto.split(' ').map(RegExp.escape).join(r'[\s,]+');
-    return RegExp(r'(?<![A-Z])RESOLUCION\s+DE\s+(?:LA\s+)?' + palabras + r'(?![A-Z])');
+    final prefijo = prefijoTitulo.split(' ').map(RegExp.escape).join(r'\s+');
+    final la = prefijoTitulo == 'RESOLUCION DE' ? r'(?:LA\s+)?' : '';
+    return RegExp('(?<![A-Z])$prefijo\\s+$la$palabras(?![A-Z])');
   }
 }
 
@@ -37,6 +48,12 @@ class CatalogoResoluciones {
         'SUBGERENCIA DE DESARROLLO ECONOMICO LICENCIAS Y CONTROL'),
     TipoResolucion('SGDT-GDTI-MDP-T', 'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO TERRITORIAL',
         'SUBGERENCIA DE DESARROLLO TERRITORIAL'),
+    TipoResolucion(
+      'CM-MDP-T',
+      'ACUERDO DE CONCEJO MUNICIPAL',
+      'CONCEJO MUNICIPAL',
+      prefijoTitulo: 'ACUERDO DE',
+    ),
   ];
 
   static TipoResolucion? porSiglas(String siglasNormalizadas) {
@@ -79,7 +96,7 @@ class CatalogoResoluciones {
     var mejorDist = 1 << 30;
     var empate = false;
     for (final t in ordenados) {
-      final patron = 'RESOLUCION DE ${t.nucleoTexto}';
+      final patron = '${t.prefijoTitulo} ${t.nucleoTexto}';
       final tolerancia = (patron.replaceAll(' ', '').length * 0.12).floor();
       final m = buscarDifuso(texto, patron, maxDistancia: tolerancia);
       if (m.isEmpty) continue;
@@ -94,4 +111,8 @@ class CatalogoResoluciones {
     }
     return empate ? null : mejor;
   }
+
+  /// El encabezado es el de un acuerdo de concejo, no el de una resolución que
+  /// solo cita un acuerdo más abajo.
+  static bool esAcuerdoDeConcejo(String texto) => porTexto(texto)?.siglas == 'CM-MDP-T';
 }

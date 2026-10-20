@@ -2,6 +2,7 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 import '../../models/campos_resolucion.dart';
 import '../../models/documento.dart';
+import 'catalogo_resoluciones.dart';
 import 'consolidador_encabezado.dart';
 import 'extractor_articulo_primero.dart';
 import 'extractor_encabezado.dart';
@@ -38,7 +39,13 @@ class ExtractorResolucion {
     ].join('\n');
 
     progreso?.call('Localizando el Artículo Primero…');
-    final articulo = ExtractorArticuloPrimero.extraer(cuerpo);
+    final anclaAcuerdo = CatalogoResoluciones.esAcuerdoDeConcejo(
+      ExtractorEncabezado.seccionEncabezado(paginas.first.texto),
+    );
+    final articulo = ExtractorArticuloPrimero.extraer(
+      cuerpo,
+      anclaAcuerdo: anclaAcuerdo,
+    );
 
     // Lecturas disponibles sin OCR adicional.
     final lecturas = <LecturaTexto>[

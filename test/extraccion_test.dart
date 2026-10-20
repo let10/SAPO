@@ -102,8 +102,8 @@ void main() {
       );
     });
 
-    test('catálogo cubre las siete equivalencias', () {
-      expect(CatalogoResoluciones.tipos.length, 7);
+    test('catálogo cubre las siete resoluciones y el acuerdo de concejo', () {
+      expect(CatalogoResoluciones.tipos.length, 8);
       expect(
         CatalogoResoluciones.porSiglas('GM-MDP-T')!.nombre,
         'RESOLUCIÓN DE GERENCIA MUNICIPAL',
@@ -119,6 +119,14 @@ void main() {
       expect(
         CatalogoResoluciones.porSiglas('SGDT-GDTI-MDP-T')!.nombre,
         'RESOLUCIÓN DE SUBGERENCIA DE DESARROLLO TERRITORIAL',
+      );
+      expect(
+        CatalogoResoluciones.porSiglas('CM-MDP-T')!.nombre,
+        'ACUERDO DE CONCEJO MUNICIPAL',
+      );
+      expect(
+        CatalogoResoluciones.porTexto('ACUERDO DE CONCEJO MUNICIPAL N° 001')!.siglas,
+        'CM-MDP-T',
       );
     });
 
@@ -1053,6 +1061,105 @@ ARTÍCULO SEGUNDO: NOTIFICAR.
       ], ahora: 2026);
       expect(r.fecha, '07/10/2026');
       expect(r.estadoFecha, EstadoCampo.requiereRevision);
+    });
+  });
+
+  group('Acuerdo de Concejo Municipal', () {
+    const acuerdo = '''
+ACUERDO DE CONCEJO MUNICIPAL
+N* 8-2026-CM-MDP/T
+Pocollay, 07 de enero de 2026.
+EL ALCALDE DE LA MUNICIPALIDAD DISTRITAL DE POCOLLAY;
+VISTO:
+Que, la Resolución de Alcaldía N° 010-2025-A-MDP-T, en su ARTÍCULO PRIMERO: DISPONER una medida citada que no es este acuerdo.
+Que, el artículo 41 de la Ley N° 27972 señala que los acuerdos son decisiones del concejo.
+ACUERDO:
+ARTÍCULO PRIMERO.- APROBAR la priorización del plan de trabajo del distrito, con cargo al presupuesto institucional.
+ARTÍCULO SEGUNDO.- ENCARGAR a la Gerencia Municipal el cumplimiento del presente acuerdo.
+''';
+
+    test('extrae los cuatro campos y normaliza el número a tres cifras', () {
+      expect(
+        CatalogoResoluciones.esAcuerdoDeConcejo(ExtractorEncabezado.seccionEncabezado(acuerdo)),
+        isTrue,
+      );
+      final enc = ConsolidadorEncabezado.consolidar([
+        const LecturaTexto(acuerdo, OrigenLectura.nativo),
+      ], ahora: 2026);
+      final art = ExtractorArticuloPrimero.extraer(acuerdo, anclaAcuerdo: true);
+      final datos = ValidadorCampos.construir(enc, art);
+
+      expect(datos.nombreCompleto.valor, 'ACUERDO DE CONCEJO MUNICIPAL N° 008-2026-CM-MDP-T');
+      expect(datos.nombreCompleto.estado, EstadoCampo.detectado);
+      expect(datos.codigo.valor, '008-2026-CM-MDP-T');
+      expect(datos.codigo.estado, EstadoCampo.detectado);
+      expect(datos.fecha.valor, '07/01/2026');
+      expect(datos.fecha.estado, EstadoCampo.detectado);
+      expect(datos.articuloPrimeroPrincipal.valor, startsWith('APROBAR la priorización'));
+      expect(datos.articuloPrimeroPrincipal.valor, isNot(contains('DISPONER')));
+      expect(datos.articuloPrimeroPrincipal.estado, EstadoCampo.detectado);
+    });
+
+    test('no usa un ARTÍCULO PRIMERO citado antes del bloque ACUERDO:', () {
+      final r = ExtractorArticuloPrimero.extraer(acuerdo, anclaAcuerdo: true);
+      expect(r.principal, startsWith('APROBAR la priorización'));
+      expect(r.principal, isNot(contains('DISPONER')));
+    });
+
+    test('sin el bloque ACUERDO: queda en revisión y no toma la cita anterior', () {
+      const sinBloque = '''
+ACUERDO DE CONCEJO MUNICIPAL
+N° 002-2026-CM-MDP-T
+Pocollay, 02 de febrero de 2026.
+VISTO:
+Que, la Resolución N° 010-2025-A-MDP-T en su ARTÍCULO PRIMERO: APROBAR una cita previa que no es el acuerdo.
+''';
+      final r = ExtractorArticuloPrimero.extraer(sinBloque, anclaAcuerdo: true);
+      expect(r.principal, isEmpty);
+      expect(r.requiereRevision, isTrue);
+      expect(r.avisos.join(' '), contains('ACUERDO:'));
+    });
+
+    test('quita el membrete de un acuerdo en la página de continuación', () {
+      const pagina =
+          'ACUERDO DE CONCEJO MUNICIPAL\nN° 001-2026-CM-MDP-T del distrito.\nARTÍCULO SEGUNDO: NOTIFICAR.';
+      final r = ExtractorEncabezado.quitarMembrete(pagina);
+      expect(r, startsWith('del distrito'));
+      expect(r, isNot(contains('ACUERDO DE CONCEJO')));
+    });
+  });
+
+  group('Regresión de resoluciones frente a un acuerdo citado', () {
+    const resolucion = '''
+RESOLUCIÓN DE ALCALDÍA
+N° 074-2026-A-MDP/T
+Pocollay, 08 de julio de 2026
+VISTO:
+Que, mediante Acuerdo de Concejo Municipal N° 010-2026-CM-MDP-T, en su ARTÍCULO PRIMERO: APROBAR un plan citado que no es el de esta resolución.
+CONSIDERANDO:
+SE RESUELVE:
+ARTÍCULO PRIMERO: AUTORIZAR el gasto indicado en el expediente administrativo de la municipalidad.
+ARTÍCULO SEGUNDO: NOTIFICAR a los interesados conforme a ley.
+''';
+
+    test('sigue extrayendo la resolución y no el acuerdo citado', () {
+      expect(
+        CatalogoResoluciones.esAcuerdoDeConcejo(ExtractorEncabezado.seccionEncabezado(resolucion)),
+        isFalse,
+      );
+      final enc = ConsolidadorEncabezado.consolidar([
+        const LecturaTexto(resolucion, OrigenLectura.nativo),
+      ], ahora: 2026);
+      final art = ExtractorArticuloPrimero.extraer(resolucion);
+      final datos = ValidadorCampos.construir(enc, art);
+
+      expect(datos.nombreCompleto.valor, 'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP-T');
+      expect(datos.codigo.valor, '074-2026-A-MDP-T');
+      expect(datos.codigo.estado, EstadoCampo.detectado);
+      expect(datos.fecha.valor, '08/07/2026');
+      expect(datos.articuloPrimeroPrincipal.valor, startsWith('AUTORIZAR el gasto'));
+      expect(datos.articuloPrimeroPrincipal.valor, isNot(contains('plan citado')));
+      expect(enc.siglas, 'A-MDP-T');
     });
   });
 }

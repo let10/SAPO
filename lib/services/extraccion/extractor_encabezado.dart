@@ -103,15 +103,18 @@ class ExtractorEncabezado {
 
   /// Las páginas de continuación repiten el membrete (logo, lema, título y
   /// código). Quita ese bloque inicial para que un artículo que cruza de página
-  /// no quede cortado por él. Solo actúa si el bloque contiene el título
-  /// "RESOLUCIÓN…" y ningún indicio de documento citado.
+  /// no quede cortado por él. Solo actúa si el bloque contiene el título del
+  /// propio documento ("RESOLUCIÓN…" o "ACUERDO DE CONCEJO…") y ningún indicio
+  /// de documento citado.
   static String quitarMembrete(String textoPagina, {int ventana = 900}) {
     final norm = normalizarParaBusqueda(textoPagina);
     final limite = norm.length < ventana ? norm.length : ventana;
     final m = _anclaRe.allMatches(norm.substring(0, limite)).firstOrNull;
     if (m == null) return textoPagina;
     final previo = norm.substring(0, m.start);
-    if (!previo.contains('RESOLUCION') ||
+    final tituloPropio =
+        previo.contains('RESOLUCION') || previo.contains('ACUERDO DE CONCEJO');
+    if (!tituloPropio ||
         RegExp(r'INFORME|OFICIO|DE FECHA|MEMORANDO').hasMatch(previo)) {
       return textoPagina;
     }
