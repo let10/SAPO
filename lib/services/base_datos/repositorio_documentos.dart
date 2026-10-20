@@ -1,6 +1,7 @@
 import 'package:sqlite3/sqlite3.dart';
 
 import '../../models/documento_almacenado.dart';
+import '../../utils/texto_utils.dart';
 import 'base_datos_local.dart';
 
 /// Resultado de intentar registrar un documento.
@@ -33,9 +34,18 @@ class RepositorioDocumentos {
       t.replaceAll(RegExp(r'\s+'), ' ').trim().toUpperCase();
   static String _normalizarCodigo(String c) => c.trim();
 
+  /// Día local `AAAA-MM-DD`. La recepción se fija al insertar y no la escribe el usuario.
+  static String _hoyLocalIso() {
+    final n = DateTime.now();
+    String dos(int v) => v.toString().padLeft(2, '0');
+    return '${n.year}-${dos(n.month)}-${dos(n.day)}';
+  }
+
   /// Guarda el documento si no hay otro con el mismo `tipo_documento` y
   /// `codigo`. Nunca borra ni sobrescribe un registro existente. Al guardar, el
-  /// documento queda como NO publicado y sin fecha de publicación.
+  /// documento queda publicado (ya se publicó en la web municipal y en gob.pe)
+  /// y con la fecha de recepción de hoy. Pasarlo a no publicado es una
+  /// corrección posterior, con [marcarPublicado].
   ResultadoRegistro registrar(DocumentoAlmacenado d) {
     final tipo = _normalizarTipo(d.tipoDocumento);
     final codigo = _normalizarCodigo(d.codigo);
@@ -46,8 +56,8 @@ class RepositorioDocumentos {
     try {
       _bd.conexion.execute(
         'INSERT INTO documentos '
-        '(tipo_documento, nombre_completo, codigo, fecha_documento, articulo_primero, ruta_pdf, publicado, fecha_publicacion) '
-        'VALUES (?, ?, ?, ?, ?, ?, 0, NULL)',
+        '(tipo_documento, nombre_completo, codigo, fecha_documento, articulo_primero, ruta_pdf, publicado, fecha_recepcion) '
+        'VALUES (?, ?, ?, ?, ?, ?, 1, ?)',
         [
           tipo,
           d.nombreCompleto.trim(),
@@ -55,6 +65,7 @@ class RepositorioDocumentos {
           d.fechaDocumento,
           d.articuloPrimero.trim(),
           d.rutaPdf,
+          _hoyLocalIso(),
         ],
       );
     } on SqliteException catch (e) {
@@ -94,9 +105,35 @@ class RepositorioDocumentos {
       _buscar(_normalizarTipo(tipoDocumento), _normalizarCodigo(codigo)) !=
       null;
 
+  /// Documentos registrados, del más reciente al más antiguo según la fecha de
+  /// recepción. [tipoDocumento] y [publicado] acotan el listado.
+  List<DocumentoAlmacenado> listar({String? tipoDocumento, bool? publicado}) =>
+      _consultar(tipoDocumento: tipoDocumento, publicado: publicado);
+
+  /// Busca por código o por nombre completo. La comparación ignora mayúsculas
+  /// y tildes. Se puede combinar con los mismos filtros de [listar].
+  List<DocumentoAlmacenado> buscar(
+    String texto, {
+    String? tipoDocumento,
+    bool? publicado,
+  }) => _consultar(tipoDocumento: tipoDocumento, publicado: publicado, texto: texto);
+
+  /// Marca el documento como publicado (`true`) o no publicado (`false`).
+  /// No modifica la fecha de recepción. Lanza [StateError] si el id no existe.
+  void marcarPublicado(int id, bool publicado) {
+    if (porId(id) == null) {
+      throw StateError('No hay un documento registrado con id $id.');
+    }
+    _bd.conexion.execute('UPDATE documentos SET publicado = ? WHERE id = ?', [
+      publicado ? 1 : 0,
+      id,
+    ]);
+  }
+
   /// Reemplaza los datos confirmados de un documento ya registrado (nombre,
-  /// código, fecha, artículo y ruta). No toca publicación ni fecha de registro.
-  /// Lanza [StateError] si otro registro ya usa el mismo tipo y código.
+  /// código, fecha del documento, artículo y ruta). No toca la publicación ni
+  /// la fecha de recepción. Lanza [StateError] si otro registro ya usa el mismo
+  /// tipo y código.
   void actualizarDatosConfirmados(int id, DocumentoAlmacenado d) {
     final tipo = _normalizarTipo(d.tipoDocumento);
     final codigo = _normalizarCodigo(d.codigo);
@@ -127,6 +164,35 @@ class RepositorioDocumentos {
     }
   }
 
+  List<DocumentoAlmacenado> _consultar({
+    String? tipoDocumento,
+    bool? publicado,
+    String? texto,
+  }) {
+    final where = <String>[];
+    final args = <Object>[];
+    if (tipoDocumento != null && tipoDocumento.trim().isNotEmpty) {
+      where.add('tipo_documento = ?');
+      args.add(_normalizarTipo(tipoDocumento));
+    }
+    if (publicado != null) {
+      where.add('publicado = ?');
+      args.add(publicado ? 1 : 0);
+    }
+    final sql =
+        'SELECT * FROM documentos'
+        '${where.isEmpty ? '' : ' WHERE ${where.join(' AND ')}'}'
+        ' ORDER BY fecha_recepcion DESC, id DESC';
+    final filas = _bd.conexion.select(sql, args).map(_desdeFila).toList();
+    final consulta = texto == null ? '' : normalizarParaBusqueda(texto).trim();
+    if (consulta.isEmpty) return filas;
+    return filas.where((d) {
+      final codigo = normalizarParaBusqueda(d.codigo);
+      final nombre = normalizarParaBusqueda(d.nombreCompleto);
+      return codigo.contains(consulta) || nombre.contains(consulta);
+    }).toList();
+  }
+
   DocumentoAlmacenado? _buscar(String tipo, String codigo) {
     final r = _bd.conexion.select(
       'SELECT * FROM documentos WHERE tipo_documento = ? AND codigo = ?',
@@ -144,9 +210,6 @@ class RepositorioDocumentos {
     articuloPrimero: f['articulo_primero'] as String,
     rutaPdf: f['ruta_pdf'] as String,
     publicado: (f['publicado'] as int) == 1,
-    fechaPublicacion: f['fecha_publicacion'] == null
-        ? null
-        : DateTime.parse(f['fecha_publicacion'] as String),
-    fechaRegistro: DateTime.parse(f['fecha_registro'] as String),
+    fechaRecepcion: f['fecha_recepcion'] as String,
   );
 }

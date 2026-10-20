@@ -19,10 +19,11 @@ class DocumentoAlmacenado {
   final String articuloPrimero;
   final String rutaPdf;
   final bool publicado;
-  final DateTime? fechaPublicacion;
 
-  /// La asigna la base de datos al insertar; `null` antes de guardar.
-  final DateTime? fechaRegistro;
+  /// Día local en que el documento se registró por primera vez, ISO `AAAA-MM-DD`.
+  /// Lo asigna la base de datos; el usuario no lo escribe y una corrección posterior
+  /// no lo cambia. `null` antes de guardar.
+  final String? fechaRecepcion;
 
   const DocumentoAlmacenado({
     this.id,
@@ -33,14 +34,19 @@ class DocumentoAlmacenado {
     required this.articuloPrimero,
     required this.rutaPdf,
     this.publicado = false,
-    this.fechaPublicacion,
-    this.fechaRegistro,
+    this.fechaRecepcion,
   });
 
   /// `DD/MM/AAAA`, como se muestra al usuario.
-  String get fechaDocumentoParaMostrar {
-    final p = fechaDocumento.split('-');
-    return p.length == 3 ? '${p[2]}/${p[1]}/${p[0]}' : fechaDocumento;
+  String get fechaDocumentoParaMostrar => _isoADiaMesAnio(fechaDocumento);
+
+  /// `DD/MM/AAAA`. Vacío si el documento aún no se ha registrado.
+  String get fechaRecepcionParaMostrar =>
+      fechaRecepcion == null ? '' : _isoADiaMesAnio(fechaRecepcion!);
+
+  static String _isoADiaMesAnio(String iso) {
+    final p = iso.split('-');
+    return p.length == 3 ? '${p[2]}/${p[1]}/${p[0]}' : iso;
   }
 
   /// Tipo de documento a partir del nombre completo: lo que va antes del

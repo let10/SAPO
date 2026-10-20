@@ -12,6 +12,7 @@ import '../services/procesador_pdf.dart';
 import '../services/selector_documentos.dart';
 import '../utils/orden_documentos.dart';
 import '../widgets/documento_tile.dart';
+import 'pantalla_control.dart';
 
 class PantallaPrincipal extends StatefulWidget {
   /// Base de datos local donde se registran los documentos confirmados.
@@ -226,36 +227,45 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
           ],
         ),
         toolbarHeight: 64,
-        actions: hayDocumentos
-            ? [
-                if (haySinProcesar)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilledButton.icon(
-                      onPressed: _procesandoTodos || !_redesListas
-                          ? null
-                          : _procesarTodos,
-                      icon: _procesandoTodos
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.play_circle_outline),
-                      label: const Text('Procesar todos'),
-                    ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => PantallaControl(
+                    repositorio: widget.repositorio,
+                    errorBaseDatos: widget.errorBaseDatos,
                   ),
-                TextButton.icon(
-                  onPressed: _procesandoTodos ? null : _limpiarSeleccion,
-                  icon: const Icon(Icons.clear_all),
-                  label: const Text('Limpiar selección'),
                 ),
-                const SizedBox(width: 8),
-              ]
-            : null,
+              );
+            },
+            icon: const Icon(Icons.fact_check_outlined),
+            label: const Text('Control de documentos'),
+          ),
+          if (hayDocumentos) ...[
+            if (haySinProcesar)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilledButton.icon(
+                  onPressed: _procesandoTodos || !_redesListas ? null : _procesarTodos,
+                  icon: _procesandoTodos
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.play_circle_outline),
+                  label: const Text('Procesar todos'),
+                ),
+              ),
+            TextButton.icon(
+              onPressed: _procesandoTodos ? null : _limpiarSeleccion,
+              icon: const Icon(Icons.clear_all),
+              label: const Text('Limpiar selección'),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ],
       ),
       body: DropTarget(
         onDragEntered: (_) => setState(() => _arrastrandoEncima = true),

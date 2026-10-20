@@ -8,7 +8,7 @@ import 'package:sqlite3/sqlite3.dart';
 /// `RepositorioDocumentos`.
 class BaseDatosLocal {
   static const String nombreArchivo = 'procesador_documental_mdp.db';
-  static const int _versionEsquema = 1;
+  static const int _versionEsquema = 2;
 
   final Database conexion;
   final String ruta;
@@ -48,15 +48,39 @@ class BaseDatosLocal {
         fecha_documento   TEXT    NOT NULL,
         articulo_primero  TEXT    NOT NULL,
         ruta_pdf          TEXT    NOT NULL,
-        publicado         INTEGER NOT NULL DEFAULT 0 CHECK (publicado IN (0, 1)),
+        publicado         INTEGER NOT NULL DEFAULT 1 CHECK (publicado IN (0, 1)),
         fecha_publicacion TEXT,
-        fecha_registro    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime'))
+        fecha_recepcion   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%d', 'now', 'localtime'))
       )
     ''');
     // Un mismo tipo de documento no puede repetir su código.
     conexion.execute(
-        'CREATE UNIQUE INDEX IF NOT EXISTS ux_documentos_tipo_codigo ON documentos (tipo_documento, codigo)');
-    if (conexion.userVersion < _versionEsquema) conexion.userVersion = _versionEsquema;
+      'CREATE UNIQUE INDEX IF NOT EXISTS ux_documentos_tipo_codigo ON documentos (tipo_documento, codigo)',
+    );
+    _asegurarFechaRecepcion();
+    if (conexion.userVersion < _versionEsquema) {
+      conexion.userVersion = _versionEsquema;
+    }
+  }
+
+  /// Las bases ya creadas guardaban el alta en `fecha_registro` (fecha y hora).
+  /// Esa columna es la fecha de recepción: se renombra y se deja solo el día
+  /// `AAAA-MM-DD`. `fecha_publicacion` se conserva y no se usa.
+  void _asegurarFechaRecepcion() {
+    final columnas = _nombresColumnas();
+    if (columnas.contains('fecha_registro') && !columnas.contains('fecha_recepcion')) {
+      conexion.execute('ALTER TABLE documentos RENAME COLUMN fecha_registro TO fecha_recepcion');
+    }
+    conexion.execute('''
+      UPDATE documentos
+      SET fecha_recepcion = substr(fecha_recepcion, 1, 10)
+      WHERE fecha_recepcion IS NOT NULL AND length(fecha_recepcion) > 10
+    ''');
+  }
+
+  Set<String> _nombresColumnas() {
+    final filas = conexion.select('PRAGMA table_info(documentos)');
+    return {for (final f in filas) f['name'] as String};
   }
 
   void cerrar() => conexion.close();
