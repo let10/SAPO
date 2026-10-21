@@ -106,3 +106,31 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# Tesseract va junto al ejecutable (tesseract/tesseract.exe y tessdata/spa.traineddata).
+# El runtime no usa C:\Program Files\Tesseract-OCR.
+set(TESSERACT_BUNDLE "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/tesseract")
+if(NOT EXISTS "${TESSERACT_BUNDLE}/tesseract.exe")
+  message(FATAL_ERROR
+    "Falta ${TESSERACT_BUNDLE}/tesseract.exe. "
+    "El Release necesita esa carpeta para copiar Tesseract junto al ejecutable.")
+endif()
+install(DIRECTORY "${TESSERACT_BUNDLE}/"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/tesseract"
+  COMPONENT Runtime)
+
+# Runtime de Visual C++ junto al ejecutable, para no exigir el redistribuible
+# instalado en el equipo de destino.
+file(GLOB VC_CRT_DIRS
+  "C:/Program Files/Microsoft Visual Studio/2022/*/VC/Redist/MSVC/*/x64/Microsoft.VC143.CRT")
+if(VC_CRT_DIRS)
+  list(SORT VC_CRT_DIRS)
+  list(GET VC_CRT_DIRS -1 VC_CRT_DIR)
+  foreach(crt_dll msvcp140.dll vcruntime140.dll vcruntime140_1.dll)
+    if(EXISTS "${VC_CRT_DIR}/${crt_dll}")
+      install(FILES "${VC_CRT_DIR}/${crt_dll}"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}"
+        COMPONENT Runtime)
+    endif()
+  endforeach()
+endif()

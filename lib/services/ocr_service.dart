@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 /// Palabra reconocida por Tesseract con su posición (píxeles de la imagen leída).
 class PalabraOcr {
   final int izquierda;
@@ -32,9 +34,45 @@ class ResultadoOcr {
   const ResultadoOcr(this.texto, this.palabras);
 }
 
-/// Envuelve llamadas al ejecutable de Tesseract OCR instalado en el sistema.
+/// Envuelve llamadas al ejecutable de Tesseract que viaja con la aplicación.
 class OcrService {
-  static const String rutaTesseract = r'C:\Program Files\Tesseract-OCR\tesseract.exe';
+  /// Busca `tesseract.exe` junto al ejecutable y, si se corre desde el
+  /// proyecto, en `third_party/tesseract`. No usa rutas fijas del equipo.
+  static String localizarTesseract({
+    String? ejecutable,
+    String? directorioTrabajo,
+    bool Function(String ruta)? existe,
+  }) {
+    final exe = ejecutable ?? Platform.resolvedExecutable;
+    final cwd = directorioTrabajo ?? Directory.current.path;
+    final comprobar = existe ?? (ruta) => File(ruta).existsSync();
+    final candidatos = [
+      p.join(p.dirname(exe), 'tesseract', 'tesseract.exe'),
+      p.join(p.dirname(exe), 'tesseract.exe'),
+      p.join(cwd, 'third_party', 'tesseract', 'tesseract.exe'),
+    ];
+    for (final ruta in candidatos) {
+      if (!comprobar(ruta)) continue;
+      final idioma = p.join(p.dirname(ruta), 'tessdata', 'spa.traineddata');
+      if (!comprobar(idioma)) {
+        throw Exception(
+          'Tesseract está en $ruta, pero falta el idioma español ($idioma).',
+        );
+      }
+      return ruta;
+    }
+    final lista = candidatos.map((ruta) => '- $ruta').join('\n');
+    throw Exception(
+      'No se encontró Tesseract junto a la aplicación.\n'
+      'Se buscó:\n$lista\n'
+      'La carpeta tesseract debe ir junto al ejecutable, con tesseract.exe y tessdata/spa.traineddata.',
+    );
+  }
+
+  /// Esta compilación de Tesseract busca `spa.traineddata` directamente dentro
+  /// de `TESSDATA_PREFIX`, no en una subcarpeta `tessdata` de ese prefijo.
+  static String prefijoDatosTesseract(String rutaTesseract) =>
+      '${p.join(p.dirname(rutaTesseract), 'tessdata')}${Platform.pathSeparator}';
 
   /// OCR general en español (motor LSTM) → solo texto.
   Future<String> reconocerImagen(String rutaImagen) async {
@@ -56,10 +94,7 @@ class OcrService {
     bool soloDigitos = false,
     bool conPalabras = false,
   }) async {
-    if (!await File(rutaTesseract).exists()) {
-      throw Exception('No se encontró Tesseract en $rutaTesseract');
-    }
-
+    final rutaTesseract = localizarTesseract();
     final salidaBase = rutaImagen.substring(0, rutaImagen.lastIndexOf('.'));
     final args = <String>[
       rutaImagen,
@@ -73,7 +108,9 @@ class OcrService {
       if (conPalabras) 'tsv',
     ];
 
-    final resultado = await Process.run(rutaTesseract, args);
+    final entorno = Map<String, String>.from(Platform.environment);
+    entorno['TESSDATA_PREFIX'] = prefijoDatosTesseract(rutaTesseract);
+    final resultado = await Process.run(rutaTesseract, args, environment: entorno);
     final archivoTxt = File('$salidaBase.txt');
     final archivoTsv = File('$salidaBase.tsv');
 
