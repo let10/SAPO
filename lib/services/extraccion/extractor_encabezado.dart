@@ -57,6 +57,18 @@ class ExtractorEncabezado {
         r'\s*(?<sig>[A-Z]{1,8}(?:\s?[-–—‐/]\s?[A-Z]{1,8}){0,3}?\s?[-–—‐/]\s?M[DO]P\s?[-–—‐/\\]\s?[TI1L])(?![A-Z])',
   );
 
+  /// Decreto `007-2025-MDP-T` u ordenanza `003-2025-MDP`. Exige que MDP siga
+  /// al año: así no toma la cola de `074-2026-A-MDP-T` ni de `019-2025-CM-MDP-T`.
+  static final RegExp _anclaMdpRe = RegExp(
+    r'(?<![A-Z0-9])(?<pre>[^\n]{0,24}?)\s*' +
+        _sep +
+        r'\s*(?<anio>[2Z][0OQ][0-9OQIZ|]{2})\s*' +
+        _sep +
+        r'\s*(?<sig>M[DO]P(?:\s*' +
+        _sep +
+        r'\s*[TI1L])?)(?![A-Z0-9])',
+  );
+
   /// Símbolo `N°` suelto, con las deformaciones habituales del OCR: `N°`, `N*`,
   /// `N%`, `No.`, `NE`, `NS`, `N“`…
   static final RegExp _simboloN = RegExp(
@@ -103,32 +115,42 @@ class ExtractorEncabezado {
 
   /// Las páginas de continuación repiten el membrete (logo, lema, título y
   /// código). Quita ese bloque inicial para que un artículo que cruza de página
-  /// no quede cortado por él. Solo actúa si el bloque contiene el título del
-  /// propio documento ("RESOLUCIÓN…" o "ACUERDO DE CONCEJO…") y ningún indicio
-  /// de documento citado.
+  /// no quede cortado por él. Solo actúa si el primer código del bloque es el
+  /// del propio documento y ningún indicio muestra que sea una cita.
   static String quitarMembrete(String textoPagina, {int ventana = 900}) {
     final norm = normalizarParaBusqueda(textoPagina);
     final limite = norm.length < ventana ? norm.length : ventana;
-    final m = _anclaRe.allMatches(norm.substring(0, limite)).firstOrNull;
-    if (m == null) return textoPagina;
+    final zona = norm.substring(0, limite);
+    final coincidencias = <RegExpMatch>[
+      ..._anclaRe.allMatches(zona),
+      ..._anclaMdpRe.allMatches(zona),
+    ]..sort((a, b) => a.start.compareTo(b.start));
+    if (coincidencias.isEmpty) return textoPagina;
+    final m = coincidencias.first;
     final previo = norm.substring(0, m.start);
-    final tituloPropio =
-        previo.contains('RESOLUCION') || previo.contains('ACUERDO DE CONCEJO');
-    if (!tituloPropio ||
-        RegExp(r'INFORME|OFICIO|DE FECHA|MEMORANDO').hasMatch(previo)) {
+    if (RegExp(r'INFORME|OFICIO|DE FECHA|MEMORANDO').hasMatch(previo)) {
       return textoPagina;
     }
+    final siglas = NormalizadorSiglas.normalizar(m.namedGroup('sig')!);
+    final esDecretoUOrdenanza = siglas == 'MDP' || siglas == 'MDP-T';
+    final tituloPropio = esDecretoUOrdenanza
+        ? previo.contains('ORDENANZA MUNICIPAL') || previo.contains('DECRETO DE ALCALDIA')
+        : previo.contains('RESOLUCION') || previo.contains('ACUERDO DE CONCEJO');
+    if (!tituloPropio) return textoPagina;
     return textoPagina.substring(m.end).trimLeft();
   }
 
   static List<CandidatoEncabezado> extraer(String texto, {int? ahora}) {
     final norm = normalizarParaBusqueda(texto);
     final resultado = <CandidatoEncabezado>[];
-
-    var desde = 0;
-    while (desde <= norm.length) {
-      final m = _anclaRe.allMatches(norm, desde).firstOrNull;
-      if (m == null) break;
+    final coincidencias = <RegExpMatch>[
+      ..._anclaRe.allMatches(norm),
+      ..._anclaMdpRe.allMatches(norm),
+    ]..sort((a, b) => a.start.compareTo(b.start));
+    var ocupadoHasta = -1;
+    for (final m in coincidencias) {
+      if (m.start < ocupadoHasta) continue;
+      ocupadoHasta = m.end;
 
       final (numeroCrudo, ambiguo) = _extraerNumeroCrudo(m.namedGroup('pre')!);
       String? numero;
@@ -192,9 +214,6 @@ class ExtractorEncabezado {
           siglasAproximadas: aproximadas,
         ),
       );
-
-      if (m.end <= desde) break;
-      desde = m.end;
     }
     return resultado;
   }
@@ -247,7 +266,20 @@ class ExtractorEncabezado {
     return (tomadas.join().replaceAll(RegExp(r'[.,_]+$'), ''), ambiguo);
   }
 
-  /// Tipo de resolución según la denominación escrita en el encabezado.
-  static TipoResolucion? tipoPorTexto(String textoEncabezado) =>
-      CatalogoResoluciones.porTexto(textoEncabezado);
+  /// Tipo del documento. El título que va con el código del encabezado manda.
+  /// Una denominación que aparece después de ese código (después de "Pocollay,")
+  /// es una cita: no cambia el tipo aunque el título propio se haya leído mal.
+  static TipoResolucion? tipoPorTexto(String texto) {
+    final encabezado = seccionEncabezado(texto);
+    final hallado = CatalogoResoluciones.tituloMasTemprano(encabezado);
+    final zonaCodigo = seccionCodigo(texto);
+    final candidatos = extraer(zonaCodigo);
+    final tipoCodigo = candidatos.isEmpty ? null : candidatos.first.tipoPorSiglas;
+    if (hallado == null) return tipoCodigo;
+    final tipoTexto = hallado.$1;
+    if (tipoCodigo == null || tipoTexto.siglas == tipoCodigo.siglas) return tipoTexto;
+    final tituloDespuesDelCodigo =
+        zonaCodigo.length < encabezado.length && hallado.$2 >= zonaCodigo.length;
+    return tituloDespuesDelCodigo ? tipoCodigo : tipoTexto;
+  }
 }

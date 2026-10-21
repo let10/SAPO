@@ -310,8 +310,8 @@ class _VistaPreviaPdfState extends State<VistaPreviaPdf> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Wrap(
-            spacing: 10,
-            runSpacing: 4,
+            spacing: 12,
+            runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(_total == 0 ? 'Página –' : 'Página $_pagina de $_total', style: theme.textTheme.titleSmall),
@@ -369,9 +369,9 @@ class _VistaPreviaPdfState extends State<VistaPreviaPdf> {
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
           border: Border.all(color: theme.colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(10),
         ),
-        child: hijo,
+        child: ClipRRect(borderRadius: BorderRadius.circular(10), child: hijo),
       );
 
   Widget _listaMiniaturas(ThemeData theme) {

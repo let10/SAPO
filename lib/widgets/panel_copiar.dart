@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../app/theme.dart';
 import '../models/documento.dart';
 
 /// Datos confirmados listos para copiar y pegar en el formulario de la web de la
@@ -20,12 +21,12 @@ class PanelCopiarDatos extends StatelessWidget {
     final articulo = datos.articuloPrimeroPrincipal.valor;
 
     return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: theme.colorScheme.surfaceContainerLow,
         border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,7 +128,7 @@ class _FilaCopiarState extends State<FilaCopiar> {
             child: _copiado
                 ? FilledButton.icon(
                     onPressed: _copiar,
-                    style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
+                    style: FilledButton.styleFrom(backgroundColor: EstadoColores.exitoTexto),
                     icon: const Icon(Icons.check, size: 16),
                     label: const Text('Copiado'),
                   )

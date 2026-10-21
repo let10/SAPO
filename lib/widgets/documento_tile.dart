@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/theme.dart';
 import '../models/documento.dart';
 import 'panel_copiar.dart';
 import 'panel_revision.dart';
@@ -34,7 +35,7 @@ class DocumentoTile extends StatelessWidget {
       case EstadoDocumento.procesando:
         return theme.colorScheme.primaryContainer;
       case EstadoDocumento.completado:
-        return Colors.green.shade100;
+        return EstadoColores.exitoFondo;
       case EstadoDocumento.error:
         return theme.colorScheme.errorContainer;
     }
@@ -46,9 +47,9 @@ class DocumentoTile extends StatelessWidget {
     final procesando = documento.estado == EstadoDocumento.procesando;
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      margin: const EdgeInsets.symmetric(vertical: 6),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -128,10 +129,10 @@ class DocumentoTile extends StatelessWidget {
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: documento.datosConfirmados
-                          ? Colors.green.shade800
+                          ? EstadoColores.exitoTexto
                           : documento.datos!.camposPorRevisar == 0
                           ? theme.colorScheme.onSurfaceVariant
-                          : Colors.deepOrange.shade800,
+                          : EstadoColores.advertenciaTexto,
                     ),
                   ),
                 ),

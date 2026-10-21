@@ -2,7 +2,6 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 import '../../models/campos_resolucion.dart';
 import '../../models/documento.dart';
-import 'catalogo_resoluciones.dart';
 import 'consolidador_encabezado.dart';
 import 'extractor_articulo_primero.dart';
 import 'extractor_encabezado.dart';
@@ -39,13 +38,14 @@ class ExtractorResolucion {
     ].join('\n');
 
     progreso?.call('Localizando el Artículo Primero…');
-    final anclaAcuerdo = CatalogoResoluciones.esAcuerdoDeConcejo(
-      ExtractorEncabezado.seccionEncabezado(paginas.first.texto),
-    );
-    final articulo = ExtractorArticuloPrimero.extraer(
-      cuerpo,
-      anclaAcuerdo: anclaAcuerdo,
-    );
+    final tipoEncabezado = ExtractorEncabezado.tipoPorTexto(paginas.first.texto);
+    final ancla = switch (tipoEncabezado?.siglas) {
+      'CM-MDP-T' => AnclaDispositiva.acuerdo,
+      'MDP-T' => AnclaDispositiva.decreta,
+      'MDP' => AnclaDispositiva.ordenanza,
+      _ => AnclaDispositiva.seResuelve,
+    };
+    final articulo = ExtractorArticuloPrimero.extraer(cuerpo, ancla: ancla);
 
     // Lecturas disponibles sin OCR adicional.
     final lecturas = <LecturaTexto>[

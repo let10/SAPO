@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../app/theme.dart';
 import '../models/campos_resolucion.dart';
 import '../models/documento.dart';
 import '../services/extraccion/extractor_fecha.dart';
@@ -242,7 +243,13 @@ class _PanelRevisionState extends State<_PanelRevision> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('REVISIÓN DE DATOS EXTRAÍDOS', style: theme.textTheme.titleLarge),
+              Text(
+                'REVISIÓN DE DATOS EXTRAÍDOS',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  letterSpacing: 0.4,
+                ),
+              ),
               const SizedBox(height: 2),
               Text(
                 widget.documento.nombre,
@@ -377,7 +384,7 @@ class _PanelRevisionState extends State<_PanelRevision> {
                 ? 'No se detectó el número: escríbalo aquí (87 se completa como 087); se actualizan el código y el nombre.'
                 : 'Se completa a tres cifras (87 → 087) y actualiza el código y el nombre.',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: sinNumero ? Colors.deepOrange.shade900 : theme.colorScheme.onSurfaceVariant,
+              color: sinNumero ? EstadoColores.advertenciaTexto : theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -477,16 +484,16 @@ class _EncabezadoCampo extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final revisar = campo.requiereRevision;
-    final colorFondo = revisar ? Colors.orange.shade100 : Colors.green.shade100;
-    final colorTexto = revisar ? Colors.deepOrange.shade900 : Colors.green.shade900;
+    final colorFondo = revisar ? EstadoColores.advertenciaFondo : EstadoColores.exitoFondo;
+    final colorTexto = revisar ? EstadoColores.advertenciaTexto : EstadoColores.exitoTexto;
     return Row(
       children: [
         Text(etiqueta, style: theme.textTheme.titleSmall),
         if (mostrarEstado) ...[
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(color: colorFondo, borderRadius: BorderRadius.circular(4)),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(color: colorFondo, borderRadius: BorderRadius.circular(20)),
             child: Text(
               campo.estadoLabel,
               style: theme.textTheme.labelSmall?.copyWith(color: colorTexto, fontWeight: FontWeight.w600),
@@ -517,7 +524,7 @@ class _NotaCampo extends StatelessWidget {
       child: Text(
         campo.nota,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: revisar ? Colors.deepOrange.shade900 : Colors.green.shade900,
+              color: revisar ? EstadoColores.advertenciaTexto : EstadoColores.exitoTexto,
             ),
       ),
     );

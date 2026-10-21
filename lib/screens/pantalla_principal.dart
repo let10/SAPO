@@ -216,17 +216,21 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Procesamiento de Documentos Administrativos'),
+            const Text('Procesamiento de Documentos Administrativos'),
             Text(
               'Municipalidad Distrital de Pocollay',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
-        toolbarHeight: 64,
+        toolbarHeight: 68,
         actions: [
           TextButton.icon(
             onPressed: () {
@@ -285,7 +289,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                 : null,
           ),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -341,17 +345,24 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 26),
 
                 // Contador
                 if (hayDocumentos) ...[
-                  Text(
-                    '${_documentos.length} documento${_documentos.length != 1 ? 's' : ''} seleccionado${_documentos.length != 1 ? 's' : ''}',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_documentos.length} documento${_documentos.length != 1 ? 's' : ''} seleccionado${_documentos.length != 1 ? 's' : ''}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                 ],
 
                 // Lista o estado vacío
@@ -383,16 +394,26 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                _arrastrandoEncima
-                                    ? Icons.file_download
-                                    : Icons.inbox_outlined,
-                                size: 72,
-                                color: _arrastrandoEncima
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.outlineVariant,
+                              Container(
+                                width: 112,
+                                height: 112,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _arrastrandoEncima
+                                      ? theme.colorScheme.primaryContainer.withValues(alpha: 0.6)
+                                      : theme.colorScheme.surfaceContainerHighest,
+                                ),
+                                child: Icon(
+                                  _arrastrandoEncima
+                                      ? Icons.file_download
+                                      : Icons.inbox_outlined,
+                                  size: 52,
+                                  color: _arrastrandoEncima
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.outline,
+                                ),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 20),
                               Text(
                                 _arrastrandoEncima
                                     ? 'Suelta para agregar los PDFs'

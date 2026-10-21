@@ -102,8 +102,8 @@ void main() {
       );
     });
 
-    test('catálogo cubre las siete resoluciones y el acuerdo de concejo', () {
-      expect(CatalogoResoluciones.tipos.length, 8);
+    test('catálogo cubre las resoluciones, el acuerdo, el decreto y la ordenanza', () {
+      expect(CatalogoResoluciones.tipos.length, 10);
       expect(
         CatalogoResoluciones.porSiglas('GM-MDP-T')!.nombre,
         'RESOLUCIÓN DE GERENCIA MUNICIPAL',
@@ -127,6 +127,26 @@ void main() {
       expect(
         CatalogoResoluciones.porTexto('ACUERDO DE CONCEJO MUNICIPAL N° 001')!.siglas,
         'CM-MDP-T',
+      );
+      expect(
+        CatalogoResoluciones.porSiglas('MDP-T')!.nombre,
+        'DECRETO DE ALCALDÍA',
+      );
+      expect(
+        CatalogoResoluciones.porSiglas('MDP')!.nombre,
+        'ORDENANZA MUNICIPAL',
+      );
+      expect(
+        CatalogoResoluciones.porTexto(
+          'DECRETO DE ALCALDÍA\nN° 009-2025-MDP-T\n'
+          'La Ordenanza Municipal N° 005-2025-MDP-T, de fecha 13 de mayo de 2025, y;\n'
+          'CONSIDERANDO:',
+        )!.siglas,
+        'MDP-T',
+      );
+      expect(
+        CatalogoResoluciones.porTexto('ORDENANZA MUNICIPAL\nNro. 003-2025-MDP')!.siglas,
+        'MDP',
       );
     });
 
@@ -322,6 +342,46 @@ void main() {
         const LecturaTexto(t, OrigenLectura.nativo),
       ], ahora: 2026);
       expect(r.numero, isNull);
+    });
+
+    test('lee el código de un decreto y de una ordenanza sin tocar el de una resolución', () {
+      final decreto = ExtractorEncabezado.extraer(
+        'DECRETO DE ALCALDÍA\nN° 007-2025-MDP-T\nPocollay, 22 de agosto de 2025.',
+        ahora: 2026,
+      );
+      expect(decreto.first.numero, '007');
+      expect(decreto.first.anio, '2025');
+      expect(decreto.first.siglas, 'MDP-T');
+      expect(decreto.first.limpio, isTrue);
+
+      final ordenanza = ExtractorEncabezado.extraer(
+        'ORDENANZA MUNICIPAL\nNro. 003-2025-MDP\nPocollay, 23 de abril del 2025.',
+        ahora: 2026,
+      );
+      expect(ordenanza.first.numero, '003');
+      expect(ordenanza.first.anio, '2025');
+      expect(ordenanza.first.siglas, 'MDP');
+      expect(ordenanza.first.limpio, isTrue);
+
+      final resolucion = ExtractorEncabezado.extraer(
+        'RESOLUCIÓN DE ALCALDÍA N° 074-2026-A-MDP-T',
+        ahora: 2026,
+      );
+      expect(resolucion.single.siglas, 'A-MDP-T');
+      final acuerdo = ExtractorEncabezado.extraer(
+        'ACUERDO DE CONCEJO MUNICIPAL N° 019-2025-CM-MDP-T',
+        ahora: 2026,
+      );
+      expect(acuerdo.single.siglas, 'CM-MDP-T');
+    });
+
+    test('quita el membrete de continuación de una ordenanza', () {
+      const pagina =
+          'Año de la recuperación\nORDENANZA MUNICIPAL\nNro. 003-2025-MDP\n'
+          'Que, el artículo 111 de la Ley continúa el considerando.';
+      final r = ExtractorEncabezado.quitarMembrete(pagina);
+      expect(r, startsWith('Que, el artículo 111'));
+      expect(r, isNot(contains('Nro.')));
     });
 
     test('quita el membrete repetido de las páginas de continuación', () {
@@ -1160,6 +1220,160 @@ ARTÍCULO SEGUNDO: NOTIFICAR a los interesados conforme a ley.
       expect(datos.articuloPrimeroPrincipal.valor, startsWith('AUTORIZAR el gasto'));
       expect(datos.articuloPrimeroPrincipal.valor, isNot(contains('plan citado')));
       expect(enc.siglas, 'A-MDP-T');
+    });
+  });
+
+  group('Decreto de alcaldía y ordenanza municipal', () {
+    const decreto = '''
+DECRETO DE ALCALDÍA
+N° 008-2025-MDP-T
+Pocollay, 27 de agosto de 2025.
+EL ALCALDE DE LA MUNICIPALIDAD DISTRITAL DE POCOLLAY:
+VISTOS:
+La Ordenanza Regional N° 012-2025-CR/GOB.REG.TACNA, de fecha 05 de junio de 2025.
+CONSIDERANDO:
+Que, la Ley Orgánica de Municipalidades señala que el alcalde ejerce las funciones mediante decretos de alcaldía.
+Que, mediante Ordenanza Regional se ordenó: "ARTÍCULO PRIMERO: DECLARAR día cívico no laborable el día 1 de setiembre."
+En uso de sus facultades conferidas.
+DECRETA:
+ARTÍCULO PRIMERO.- DECLARAR, EL DÍA 01 DE SETIEMBRE DEL 2025, FERIADO NO LABORABLE, COMPENSABLE, para los trabajadores de la Municipalidad Distrital de Pocollay.
+ARTÍCULO SEGUNDO.- DISPONER que las horas dejadas de laborar se compensen.
+''';
+
+    const ordenanza = '''
+ORDENANZA MUNICIPAL
+Nro. 003-2025-MDP
+Pocollay, 23 de abril del 2025.
+EL ALCALDE DE LA MUNICIPALIDAD DISTRITAL DE POCOLLAY;
+VISTO:
+El Acuerdo de Concejo Municipal N° 019-2025-CM-MDP-T de fecha 23 de abril de 2025.
+CONSIDERANDO:
+Que, el artículo 9 de la Ley N° 27972 señala aprobar, modificar o derogar las ordenanzas.
+Estando a lo actuado, el Concejo Distrital de Pocollay, por UNANIMIDAD, aprobó la siguiente:
+ORDENANZA MUNICIPAL
+QUE APRUEBA EL REGLAMENTO DE ORGANIZACIÓN Y FUNCIONES DE JUNTAS VECINALES
+ARTÍCULO PRIMERO.- APROBAR, el REGLAMENTO DE ORGANIZACIÓN Y FUNCIONES de las JUNTAS VECINALES COMUNALES DEL DISTRITO DE POCOLLAY, el cual forma parte integrante de la presente Ordenanza Municipal.
+ARTÍCULO SEGUNDO.- FACULTAR, al Titular de la Entidad, a dictar mediante Decreto de Alcaldía las disposiciones complementarias.
+''';
+
+    test('decreto: título, código, fecha y el artículo que sigue a DECRETA', () {
+      final enc = ConsolidadorEncabezado.consolidar([
+        const LecturaTexto(decreto, OrigenLectura.nativo),
+      ], ahora: 2026);
+      final art = ExtractorArticuloPrimero.extraer(decreto, ancla: AnclaDispositiva.decreta);
+      final datos = ValidadorCampos.construir(enc, art);
+
+      expect(datos.nombreCompleto.valor, 'DECRETO DE ALCALDÍA N° 008-2025-MDP-T');
+      expect(datos.nombreCompleto.estado, EstadoCampo.detectado);
+      expect(datos.codigo.valor, '008-2025-MDP-T');
+      expect(datos.codigo.estado, EstadoCampo.detectado);
+      expect(datos.fecha.valor, '27/08/2025');
+      expect(datos.fecha.estado, EstadoCampo.detectado);
+      expect(art.principal, startsWith('DECLARAR, EL DÍA 01 DE SETIEMBRE'));
+      expect(art.principal, isNot(contains('día cívico')));
+      expect(art.principal, isNot(contains('DISPONER')));
+      expect(art.avisos, isEmpty);
+    });
+
+    test('ordenanza: título, código Nro. sin T, fecha y el artículo tras "aprobó la siguiente"', () {
+      final enc = ConsolidadorEncabezado.consolidar([
+        const LecturaTexto(ordenanza, OrigenLectura.nativo),
+      ], ahora: 2026);
+      final art = ExtractorArticuloPrimero.extraer(ordenanza, ancla: AnclaDispositiva.ordenanza);
+      final datos = ValidadorCampos.construir(enc, art);
+
+      expect(datos.nombreCompleto.valor, 'ORDENANZA MUNICIPAL N° 003-2025-MDP');
+      expect(datos.nombreCompleto.estado, EstadoCampo.detectado);
+      expect(datos.codigo.valor, '003-2025-MDP');
+      expect(datos.codigo.estado, EstadoCampo.detectado);
+      expect(datos.fecha.valor, '23/04/2025');
+      expect(datos.fecha.estado, EstadoCampo.detectado);
+      expect(art.principal, startsWith('APROBAR, el REGLAMENTO'));
+      expect(art.principal, isNot(contains('FACULTAR')));
+      expect(art.avisos, isEmpty);
+    });
+
+    test('también reconoce "aprobó lo siguiente"', () {
+      const texto = '''
+ORDENANZA MUNICIPAL
+Nro. 005-2025-MDP
+Pocollay, 01 de agosto del 2025.
+CONSIDERANDO:
+Que, se evaluó el reglamento.
+El Concejo Distrital, por UNANIMIDAD, aprobó lo siguiente:
+ORDENANZA MUNICIPAL
+QUE APRUEBA EL REGLAMENTO DE AUDIENCIAS PÚBLICAS
+ARTÍCULO PRIMERO.- APROBAR, el REGLAMENTO QUE REGULA LA REALIZACIÓN DE LAS AUDIENCIAS PÚBLICAS DE RENDICIÓN DE CUENTAS.
+ARTÍCULO SEGUNDO.- FACULTAR al titular.
+''';
+      final art = ExtractorArticuloPrimero.extraer(texto, ancla: AnclaDispositiva.ordenanza);
+      expect(art.principal, startsWith('APROBAR, el REGLAMENTO QUE REGULA'));
+      expect(art.avisos, isEmpty);
+    });
+
+    test('ordenanza 004: el título roto no cede el tipo a la cita de acuerdo', () {
+      const pagina1 = '''
+NANZA MUNICIPAL
+. 004-2025-MDP
+Pocollay, 30 de junio del 2025.
+Ed Sesión Ordinaria de Concejo de fecha 23 de junio de 2025, el Acuerdo de Concejo Municipal N* 027-2025-CM-MDP-T de fecha 23 de junio de 2025, que aprueba la Ordenanza Municipal.
+CONSIDERANDO:
+''';
+      const cuerpo = '''
+$pagina1
+de conformidad con las atribuciones, por UNANIMIDAD, aprobó lo siguiente:
+ORDENANZA MUNICIPAL
+ARTÍCULO PRIMERO.- APROBAR, la CREACIÓN y CONFORMACIÓN del COMITÉ DISTRITAL DE LUCHA CONTRA LA TRATA DE PERSONAS.
+ARTÍCULO SEGUNDO.- DESIGNAR, a los INTEGRANTES del COMITÉ.
+''';
+
+      final tipo = ExtractorEncabezado.tipoPorTexto(pagina1);
+      expect(tipo!.siglas, 'MDP');
+      expect(tipo.nombre, 'ORDENANZA MUNICIPAL');
+
+      final art = ExtractorArticuloPrimero.extraer(cuerpo, ancla: AnclaDispositiva.ordenanza);
+      expect(art.principal, startsWith('APROBAR, la CREACIÓN y CONFORMACIÓN'));
+      expect(art.avisos, isEmpty);
+
+      final comoAcuerdo = ExtractorArticuloPrimero.extraer(cuerpo, ancla: AnclaDispositiva.acuerdo);
+      expect(comoAcuerdo.principal, isEmpty);
+    });
+
+    test('decreto 006: sin DECRETA, el artículo pegado tras Documentaria', () {
+      const texto = '''
+DECRETO DE ALCALDÍA
+N° 006-2025-MDP-T
+Pocollay, 10 de julio de 2025.
+CONSIDERANDO:
+Que, el alcalde ejerce las funciones mediante decretos de alcaldía.
+Que, el artículo 42 de la Ley N° 27972.
+Que, se dispuso: "ARTÍCULO PRIMERO: DECLARAR día cívico."
+Gestión Documentaria;
+
+¡JARTÍCULO PRIMERO, - DISPONER el EMBANDERAMIENTO GENERAL DE TODOS LOS INMUEBLES PÚBLICOS Y PRIVADOS UBICADOS EN EL DISTRITO DE POCOLLAY.
+ARTÍCULO SEGUNDO. - ESTABLECER que todas las banderas sean izadas.
+''';
+
+      expect(ExtractorEncabezado.tipoPorTexto(texto)!.siglas, 'MDP-T');
+      final art = ExtractorArticuloPrimero.extraer(texto, ancla: AnclaDispositiva.decreta);
+      expect(art.principal, startsWith('DISPONER el EMBANDERAMIENTO'));
+      expect(art.principal, isNot(contains('día cívico')));
+      expect(art.principal, isNot(contains('ESTABLECER')));
+      expect(art.avisos, isEmpty);
+    });
+
+    test('decreto sin DECRETA no toma un artículo citado en los considerandos', () {
+      const texto = '''
+DECRETO DE ALCALDÍA
+N° 010-2025-MDP-T
+Pocollay, 01 de octubre de 2025.
+CONSIDERANDO:
+Que, se dispuso: "ARTÍCULO PRIMERO: DECLARAR día cívico."
+La oficina de Gestión Documentaria emitió un informe extenso que no contiene el articulado y sigue por varios renglones hasta perderse del todo.
+''';
+      final art = ExtractorArticuloPrimero.extraer(texto, ancla: AnclaDispositiva.decreta);
+      expect(art.principal, isEmpty);
+      expect(art.avisos, isNotEmpty);
     });
   });
 }

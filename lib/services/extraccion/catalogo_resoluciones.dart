@@ -54,6 +54,20 @@ class CatalogoResoluciones {
       'CONCEJO MUNICIPAL',
       prefijoTitulo: 'ACUERDO DE',
     ),
+    // El decreto trae código `NNN-AÑO-MDP-T` (no `A-MDP-T`, que es la resolución).
+    TipoResolucion(
+      'MDP-T',
+      'DECRETO DE ALCALDÍA',
+      'ALCALDIA',
+      prefijoTitulo: 'DECRETO DE',
+    ),
+    // La ordenanza trae código `Nro. NNN-AÑO-MDP`, sin la `-T` del decreto.
+    TipoResolucion(
+      'MDP',
+      'ORDENANZA MUNICIPAL',
+      'MUNICIPAL',
+      prefijoTitulo: 'ORDENANZA',
+    ),
   ];
 
   static TipoResolucion? porSiglas(String siglasNormalizadas) {
@@ -83,17 +97,38 @@ class CatalogoResoluciones {
   }
 
   /// Detecta el tipo a partir del texto del encabezado.
-  static TipoResolucion? porTexto(String texto) {
+  ///
+  /// Si hay más de un título, gana el que aparece primero: el del documento va
+  /// arriba y las citas (una ordenanza citada dentro de un decreto, por ejemplo)
+  /// van después. A igual posición gana el núcleo más largo, para no tomar
+  /// "gerencia" cuando el título es de una subgerencia.
+  static TipoResolucion? porTexto(String texto) => tituloMasTemprano(texto)?.$1;
+
+  /// Título más temprano y su posición en [texto] (misma longitud que el original).
+  static (TipoResolucion, int)? tituloMasTemprano(String texto) {
     final norm = normalizarParaBusqueda(texto);
 
-    final ordenados = [...tipos]..sort((a, b) => b.nucleoTexto.length.compareTo(a.nucleoTexto.length));
-    for (final t in ordenados) {
-      if (t._patron.hasMatch(norm)) return t;
+    TipoResolucion? elegido;
+    var mejorInicio = 1 << 30;
+    var mejorLargo = -1;
+    for (final t in tipos) {
+      final m = t._patron.firstMatch(norm);
+      if (m == null) continue;
+      final largo = t.nucleoTexto.length;
+      if (m.start < mejorInicio || (m.start == mejorInicio && largo > mejorLargo)) {
+        mejorInicio = m.start;
+        mejorLargo = largo;
+        elegido = t;
+      }
     }
+    if (elegido != null) return (elegido, mejorInicio);
+
+    final ordenados = [...tipos]..sort((a, b) => b.nucleoTexto.length.compareTo(a.nucleoTexto.length));
 
     // Respaldo tolerante a OCR: búsqueda aproximada de la denominación completa.
     TipoResolucion? mejor;
     var mejorDist = 1 << 30;
+    var mejorPos = 0;
     var empate = false;
     for (final t in ordenados) {
       final patron = '${t.prefijoTitulo} ${t.nucleoTexto}';
@@ -104,12 +139,14 @@ class CatalogoResoluciones {
       if (d < mejorDist) {
         mejorDist = d;
         mejor = t;
+        mejorPos = m.first.inicio;
         empate = false;
       } else if (d == mejorDist) {
         empate = true;
       }
     }
-    return empate ? null : mejor;
+    if (empate || mejor == null) return null;
+    return (mejor, mejorPos);
   }
 
   /// El encabezado es el de un acuerdo de concejo, no el de una resolución que

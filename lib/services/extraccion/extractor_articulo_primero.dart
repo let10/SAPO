@@ -1,6 +1,21 @@
 import '../../utils/texto_utils.dart';
 import 'corrector_articulo.dart';
 
+/// Dónde empieza la parte dispositiva, según el tipo de norma.
+enum AnclaDispositiva {
+  /// Resolución: "SE RESUELVE".
+  seResuelve,
+
+  /// Acuerdo de concejo: el bloque "ACUERDO:".
+  acuerdo,
+
+  /// Decreto de alcaldía: "DECRETA:".
+  decreta,
+
+  /// Ordenanza: "aprobó la siguiente" / "aprobó lo siguiente".
+  ordenanza,
+}
+
 class ResultadoArticulo {
   /// Párrafo resolutivo principal (sin la etiqueta "ARTÍCULO PRIMERO").
   final String principal;
@@ -42,34 +57,69 @@ class ExtractorArticuloPrimero {
 
   static const int _minimoPrincipal = 40;
 
-  static ResultadoArticulo extraer(String texto, {bool anclaAcuerdo = false}) {
+  static ResultadoArticulo extraer(
+    String texto, {
+    bool anclaAcuerdo = false,
+    AnclaDispositiva? ancla,
+  }) {
+    final modo = ancla ?? (anclaAcuerdo ? AnclaDispositiva.acuerdo : AnclaDispositiva.seResuelve);
     final avisos = <String>[];
     var desde = 0;
+    var anclado = false;
+    var inicioForzado = false;
 
-    if (anclaAcuerdo) {
-      final marca = _localizarAcuerdoOperativo(texto);
-      if (marca == null) {
-        avisos.add('No se encontró el bloque "ACUERDO:".');
-        return ResultadoArticulo(principal: '', completo: '', avisos: avisos);
-      }
-      desde = marca.fin;
-    } else {
-      final sr = _localizarSeResuelve(texto);
-      if (sr == null) {
-        avisos.add('No se encontró "SE RESUELVE".');
-      } else {
-        desde = sr.fin;
-      }
+    switch (modo) {
+      case AnclaDispositiva.acuerdo:
+        final marca = _localizarAcuerdoOperativo(texto);
+        if (marca == null) {
+          avisos.add('No se encontró el bloque "ACUERDO:".');
+          return ResultadoArticulo(principal: '', completo: '', avisos: avisos);
+        }
+        desde = marca.fin;
+        anclado = true;
+      case AnclaDispositiva.decreta:
+        final marca = _localizarDecreta(texto);
+        if (marca != null) {
+          desde = marca.fin;
+          anclado = true;
+        } else {
+          // "DECRETA:" no se leyó: quedó una letra pegada al artículo
+          // ("¡JARTÍCULO PRIMERO") justo después de "Documentaria;".
+          final pegado = _articuloTrasDocumentaria(texto);
+          if (pegado == null) {
+            avisos.add('No se encontró "DECRETA:".');
+            return ResultadoArticulo(principal: '', completo: '', avisos: avisos);
+          }
+          desde = pegado;
+          anclado = true;
+          inicioForzado = true;
+        }
+      case AnclaDispositiva.ordenanza:
+        final marca = _localizarOrdenanza(texto);
+        if (marca == null) {
+          avisos.add('No se encontró el bloque "aprobó la siguiente".');
+          return ResultadoArticulo(principal: '', completo: '', avisos: avisos);
+        }
+        desde = marca.fin;
+        anclado = true;
+      case AnclaDispositiva.seResuelve:
+        final sr = _localizarSeResuelve(texto);
+        if (sr == null) {
+          avisos.add('No se encontró "SE RESUELVE".');
+        } else {
+          desde = sr.fin;
+          anclado = true;
+        }
     }
 
     // Sin ancla (no hubo "SE RESUELVE") se elige la mención que parece el
-    // encabezado real. Con ancla —"SE RESUELVE" o el bloque "ACUERDO:"— solo
-    // vale el primer ARTÍCULO PRIMERO que viene después.
-    final hayAncla =
-        anclaAcuerdo || !avisos.any((a) => a.contains('SE RESUELVE'));
-    final primero = hayAncla
-        ? _primerArticuloPrimero(texto, desde)
-        : _mejorArticuloPrimeroSinAncla(texto);
+    // encabezado real. Con ancla solo vale el primer ARTÍCULO PRIMERO que
+    // viene después.
+    final primero = !anclado
+        ? _mejorArticuloPrimeroSinAncla(texto)
+        : inicioForzado
+            ? _articuloQueEmpiezaEn(texto, desde)
+            : _primerArticuloPrimero(texto, desde);
     if (primero == null) {
       avisos.add('No se encontró "ARTÍCULO PRIMERO".');
       return ResultadoArticulo(principal: '', completo: '', avisos: avisos);
@@ -137,6 +187,100 @@ class ExtractorArticuloPrimero {
         mejorPuntaje = puntaje;
         mejor = c;
       }
+    }
+    return mejor;
+  }
+
+  /// "DECRETA:" del decreto. No vale "decretos de alcaldía" dentro de los
+  /// considerandos: esa frase sigue con "de" y no abre el artículo.
+  static CoincidenciaDifusa? _localizarDecreta(String texto) {
+    final candidatos = buscarDifuso(texto, 'DECRETA', maxDistancia: 1);
+    CoincidenciaDifusa? mejor;
+    var mejorPuntaje = 2;
+    for (final c in candidatos) {
+      final letras = normalizarParaBusqueda(texto.substring(c.inicio, c.fin)).replaceAll(RegExp(r'[^A-Z]'), '');
+      if (letras != 'DECRETA' && letras != 'DECRETO') continue;
+      if (_palabraSiguiente(texto, c.fin) == 'DE') continue;
+      var puntaje = 0;
+      if (_cierraConPuntuacion(texto, c.fin)) puntaje += 2;
+      final seguido = _buscarArticulo(texto, 'ARTICULOPRIMERO', c.fin);
+      if (seguido != null && seguido.inicio - c.fin < 500) puntaje += 3;
+      puntaje -= c.distancia;
+      if (puntaje > mejorPuntaje) {
+        mejorPuntaje = puntaje;
+        mejor = c;
+      }
+    }
+    return mejor;
+  }
+
+  /// Índice de la A de "ARTÍCULO PRIMERO" cuando "DECRETA:" no se leyó y el
+  /// artículo quedó pegado a una letra ("¡JARTÍCULO"), inmediatamente después
+  /// de "Documentaria;". No mira artículos citados más arriba.
+  static int? _articuloTrasDocumentaria(String texto) {
+    int? elegido;
+    for (final d in buscarDifuso(texto, 'DOCUMENTARIA', maxDistancia: 1)) {
+      final tope = d.fin + 90 < texto.length ? d.fin + 90 : texto.length;
+      final indice = _indiceArticuloConLetraPegada(texto, d.fin, tope);
+      if (indice != null) elegido = indice;
+    }
+    return elegido;
+  }
+
+  static int? _indiceArticuloConLetraPegada(String texto, int desde, int hasta) {
+    final norm = normalizarParaBusqueda(texto);
+    final compacto = StringBuffer();
+    final mapa = <int>[];
+    for (var i = desde; i < hasta && i < norm.length; i++) {
+      final u = norm.codeUnitAt(i);
+      final esLetra = u >= 0x41 && u <= 0x5A;
+      final esDigito = u >= 0x30 && u <= 0x39;
+      if (esLetra || esDigito) {
+        compacto.writeCharCode(u);
+        mapa.add(i);
+      }
+    }
+    const patron = 'ARTICULOPRIMERO';
+    final c = compacto.toString();
+    final i = c.indexOf(patron);
+    if (i < 0 || i > 1) return null;
+    if (i == 1) {
+      final prefijo = mapa[0];
+      if (prefijo > 0) {
+        final antes = norm.codeUnitAt(prefijo - 1);
+        final letraAntes = antes >= 0x41 && antes <= 0x5A;
+        if (letraAntes) return null;
+      }
+    }
+    return mapa[i];
+  }
+
+  /// [desde] es el inicio de "ARTÍCULO", aunque la letra anterior vaya pegada.
+  static CoincidenciaDifusa? _articuloQueEmpiezaEn(String texto, int desde) {
+    if (desde < 0 || desde >= texto.length) return null;
+    final m = buscarDifuso(texto.substring(desde), 'ARTICULOPRIMERO', maxDistancia: 2);
+    if (m.isEmpty || m.first.inicio != 0) return null;
+    final c = m.first;
+    return CoincidenciaDifusa(desde + c.inicio, desde + c.fin, c.distancia);
+  }
+
+  /// La ordenanza repite el título justo antes del articulado, después de
+  /// "aprobó la siguiente" o "aprobó lo siguiente". "POR TANTO" va al final,
+  /// cuando los artículos ya pasaron, así que no sirve de ancla.
+  static CoincidenciaDifusa? _localizarOrdenanza(String texto) {
+    final frases = [
+      ...buscarDifuso(texto, 'APROBOLASIGUIENTE', maxDistancia: 2),
+      ...buscarDifuso(texto, 'APROBOLOSIGUIENTE', maxDistancia: 2),
+    ];
+    CoincidenciaDifusa? mejor;
+    var mejorHueco = 901;
+    for (final c in frases) {
+      final seguido = _buscarArticulo(texto, 'ARTICULOPRIMERO', c.fin);
+      if (seguido == null) continue;
+      final hueco = seguido.inicio - c.fin;
+      if (hueco < 0 || hueco > 900 || hueco >= mejorHueco) continue;
+      mejorHueco = hueco;
+      mejor = c;
     }
     return mejor;
   }
@@ -217,7 +361,7 @@ class ExtractorArticuloPrimero {
 
   static int _saltarSeparadores(String texto, int pos) {
     var i = pos;
-    while (i < texto.length && RegExp(r'[\s:.\-–—_]').hasMatch(texto[i])) {
+    while (i < texto.length && RegExp(r'[\s:.,\-–—_]').hasMatch(texto[i])) {
       i++;
     }
     return i;

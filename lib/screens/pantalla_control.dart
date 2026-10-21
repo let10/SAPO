@@ -125,20 +125,24 @@ class _PantallaControlState extends State<PantallaControl> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Control de documentos'),
+            const Text('Control de documentos'),
             Text(
               'Municipalidad Distrital de Pocollay',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
-        toolbarHeight: 64,
+        toolbarHeight: 68,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(28),
         child: sinBase
             ? Center(
                 child: Text(
@@ -151,14 +155,14 @@ class _PantallaControlState extends State<PantallaControl> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _barraFiltros(theme),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   Text(
                     '${_documentos.length} documento${_documentos.length == 1 ? '' : 's'}',
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Expanded(child: _cuerpo(theme)),
                 ],
               ),
@@ -279,21 +283,36 @@ class _PantallaControlState extends State<PantallaControl> {
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         child: Column(
           children: [
             ColoredBox(
-              color: theme.colorScheme.surfaceContainerHighest,
+              color: theme.colorScheme.surfaceContainerHigh,
               child: _lineaTabla(
-                const [
-                  Text('Tipo', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text('Código', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text('Fecha del documento', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text('Fecha de recepción', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text('Publicado', style: TextStyle(fontWeight: FontWeight.w600)),
+                [
+                  Text(
+                    'Tipo',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  Text(
+                    'Código',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  Text(
+                    'Fecha del documento',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  Text(
+                    'Fecha de recepción',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  Text(
+                    'Publicado',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: theme.colorScheme.onSurfaceVariant),
+                  ),
                 ],
                 acciones: const SizedBox(width: 88),
               ),
@@ -347,7 +366,7 @@ class _PantallaControlState extends State<PantallaControl> {
 
   Widget _lineaTabla(List<Widget> celdas, {required Widget acciones}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       child: Row(
         children: [
           for (var i = 0; i < celdas.length; i++)
@@ -367,11 +386,12 @@ class _PantallaControlState extends State<PantallaControl> {
   Widget _panelDetalle(ThemeData theme, DocumentoAlmacenado doc) {
     return DecoratedBox(
       decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
         border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
