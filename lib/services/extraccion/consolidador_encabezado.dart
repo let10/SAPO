@@ -196,6 +196,34 @@ class ConsolidadorEncabezado {
   /// donde se citan otras resoluciones, informes y fechas).
   static String _seccion(LecturaTexto l) => ExtractorEncabezado.seccionEncabezado(l.texto);
 
+  /// Título escrito en el encabezado, solo si es acuerdo de concejo o gerencia
+  /// municipal. No usa las siglas del código: sin eso, una G leída por una C
+  /// se tomaría a sí misma como título.
+  static String? _tituloEscritoCmGm(List<LecturaTexto> lecturas, Set<String> par) {
+    String? hallado;
+    for (final l in lecturas) {
+      final tipo = CatalogoResoluciones.tituloMasTemprano(
+        ExtractorEncabezado.seccionEncabezado(l.texto),
+      )?.$1;
+      if (tipo == null || !par.contains(tipo.siglas)) continue;
+      if (hallado != null && hallado != tipo.siglas) return null;
+      hallado = tipo.siglas;
+    }
+    return hallado;
+  }
+
+  /// Bloque operativo en su propia línea: `ACUERDO:` es acuerdo de concejo y
+  /// `SE RESUELVE` es gerencia municipal. Una cita a mitad de párrafo no cuenta.
+  /// Si aparecen los dos, no hay respaldo.
+  static String? _anclaOperativaCmGm(String texto) {
+    if (texto.isEmpty) return null;
+    final norm = normalizarParaBusqueda(texto);
+    final acuerdo = RegExp(r'(?:^|\n)\s*ACUERDO\s*[:;.]').hasMatch(norm);
+    final resuelve = RegExp(r'(?:^|\n)\s*SE\s+RESUELVE\b').hasMatch(norm);
+    if (acuerdo == resuelve) return null;
+    return acuerdo ? 'CM-MDP-T' : 'GM-MDP-T';
+  }
+
   static ResultadoEncabezado consolidar(
     List<LecturaTexto> lecturas, {
     String textoCuerpo = '',
@@ -452,6 +480,53 @@ class ConsolidadorEncabezado {
     } else {
       notaSiglas = 'No se pudieron leer las siglas.';
       notaTipo = 'No se pudo determinar el tipo de resolución.';
+    }
+
+    // CM-MDP-T y GM-MDP-T se diferencian solo en C/G. Una lectura exacta de la
+    // letra equivocada es un tipo válido, así que no se corrige por similitud.
+    // El título y el bloque operativo (ACUERDO: / SE RESUELVE) deshacen esa
+    // confusión cuando coinciden. Si no coinciden, no se da por detectado.
+    const parCmGm = {'CM-MDP-T', 'GM-MDP-T'};
+    final tituloPar = _tituloEscritoCmGm(primarias, parCmGm);
+    final siglaPar = siglas != null && parCmGm.contains(siglas) ? siglas : null;
+    final lecturasPar = votosSiglas.valores.where(parCmGm.contains).toList();
+    if (tituloPar != null || siglaPar != null || lecturasPar.isNotEmpty) {
+      final cuerpo = textoCuerpo.isNotEmpty ? textoCuerpo : primarias.map((l) => l.texto).join('\n');
+      final anclaPar = _anclaOperativaCmGm(cuerpo);
+      final respaldo = tituloPar != null && anclaPar == tituloPar ? tituloPar : null;
+      final conflicto = lecturasPar.toSet().length > 1 && votosSiglas.hayConflicto;
+      if (respaldo != null && (siglaPar != respaldo || conflicto)) {
+        tipo = CatalogoResoluciones.porSiglas(respaldo);
+        siglas = respaldo;
+        estadoTipo = EstadoCampo.detectado;
+        estadoSiglas = EstadoCampo.detectado;
+        notaTipo = '';
+        notaSiglas = '';
+      } else if (siglaPar != null && tituloPar != null && tituloPar != siglaPar) {
+        estadoTipo = EstadoCampo.requiereRevision;
+        estadoSiglas = EstadoCampo.requiereRevision;
+        if (notaTipo.isEmpty) {
+          notaTipo =
+              'El título y las siglas no coinciden entre acuerdo de concejo (CM-MDP-T) y gerencia municipal (GM-MDP-T).';
+        }
+        notaSiglas = 'Lectura dudosa entre C y G (CM-MDP-T / GM-MDP-T); verifique las siglas.';
+      } else if (siglaPar != null && tituloPar == null && anclaPar != null && anclaPar != siglaPar) {
+        estadoTipo = EstadoCampo.requiereRevision;
+        estadoSiglas = EstadoCampo.requiereRevision;
+        notaTipo =
+            'La estructura del documento no coincide con las siglas $siglaPar; puede confundirse el acuerdo de concejo con la gerencia municipal.';
+        notaSiglas = 'Lectura dudosa entre C y G (CM-MDP-T / GM-MDP-T); verifique las siglas.';
+      } else if (conflicto) {
+        estadoTipo = EstadoCampo.requiereRevision;
+        estadoSiglas = EstadoCampo.requiereRevision;
+        if (notaSiglas.isEmpty) {
+          notaSiglas = 'Lecturas distintas de las siglas: ${votosSiglas.describir()}.';
+        }
+        if (notaTipo.isEmpty) {
+          notaTipo =
+              'Lecturas distintas entre CM-MDP-T y GM-MDP-T, sin un título y una estructura que las resuelvan.';
+        }
+      }
     }
 
     // ── Fecha ───────────────────────────────────────────────────────────────

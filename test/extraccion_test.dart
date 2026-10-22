@@ -1376,4 +1376,145 @@ La oficina de Gestión Documentaria emitió un informe extenso que no contiene e
       expect(art.avisos, isNotEmpty);
     });
   });
+
+  group('Confusión OCR entre CM-MDP-T y GM-MDP-T', () {
+    ResultadoEncabezado consolidar(String texto, {String otro = ''}) {
+      return ConsolidadorEncabezado.consolidar([
+        LecturaTexto(texto, OrigenLectura.nativo),
+        LecturaTexto(otro.isEmpty ? texto : otro, OrigenLectura.ocrFocalizado),
+      ], textoCuerpo: otro.isEmpty ? texto : '$texto\n$otro', ahora: 2026);
+    }
+
+    test('título y bloque ACUERDO corrigen una G leída en lugar de la C', () {
+      const acuerdo = '''
+ACUERDO DE CONCEJO MUNICIPAL
+N° 019-2026-GM-MDP-T
+Pocollay, 07 de enero de 2026.
+VISTO:
+Que, el concejo vio el expediente de priorización.
+ACUERDO:
+ARTÍCULO PRIMERO.- APROBAR la priorización del plan de trabajo del distrito para el presente año.
+ARTÍCULO SEGUNDO.- ENCARGAR el cumplimiento del presente acuerdo.
+''';
+      final r = consolidar(acuerdo);
+      final datos = ValidadorCampos.construir(
+        r,
+        ExtractorArticuloPrimero.extraer(acuerdo, ancla: AnclaDispositiva.acuerdo),
+      );
+
+      expect(r.tipo!.siglas, 'CM-MDP-T');
+      expect(r.estadoTipo, EstadoCampo.detectado);
+      expect(r.estadoSiglas, EstadoCampo.detectado);
+      expect(datos.nombreCompleto.valor, 'ACUERDO DE CONCEJO MUNICIPAL N° 019-2026-CM-MDP-T');
+      expect(datos.nombreCompleto.estado, EstadoCampo.detectado);
+      expect(datos.codigo.valor, '019-2026-CM-MDP-T');
+      expect(datos.codigo.estado, EstadoCampo.detectado);
+    });
+
+    test('título y SE RESUELVE corrigen una C leída en lugar de la G', () {
+      const gerencia = '''
+RESOLUCIÓN DE GERENCIA MUNICIPAL
+N° 146-2026-CM-MDP-T
+Pocollay, 02 de octubre de 2026.
+VISTO:
+Que, la gerencia revisó el expediente.
+SE RESUELVE:
+ARTÍCULO PRIMERO.- APROBAR el informe de la oficina de administración del distrito.
+ARTÍCULO SEGUNDO.- NOTIFICAR la presente resolución.
+''';
+      final r = consolidar(gerencia);
+      final datos = ValidadorCampos.construir(
+        r,
+        ExtractorArticuloPrimero.extraer(gerencia, ancla: AnclaDispositiva.seResuelve),
+      );
+
+      expect(r.tipo!.siglas, 'GM-MDP-T');
+      expect(r.estadoTipo, EstadoCampo.detectado);
+      expect(datos.nombreCompleto.valor, 'RESOLUCIÓN DE GERENCIA MUNICIPAL N° 146-2026-GM-MDP-T');
+      expect(datos.nombreCompleto.estado, EstadoCampo.detectado);
+      expect(datos.codigo.valor, '146-2026-GM-MDP-T');
+      expect(datos.codigo.estado, EstadoCampo.detectado);
+    });
+
+    test('título y estructura en desacuerdo: no se clasifica y queda REQUIERE REVISIÓN', () {
+      const ambiguo = '''
+ACUERDO DE CONCEJO MUNICIPAL
+N° 019-2026-GM-MDP-T
+Pocollay, 07 de enero de 2026.
+VISTO:
+Que, el expediente trae antecedentes.
+SE RESUELVE:
+ARTÍCULO PRIMERO.- APROBAR el informe de la oficina de administración del distrito.
+ARTÍCULO SEGUNDO.- NOTIFICAR la presente resolución.
+''';
+      final r = consolidar(ambiguo);
+      final datos = ValidadorCampos.construir(
+        r,
+        const ResultadoArticulo(principal: 'APROBAR el informe.', completo: 'x'),
+      );
+
+      expect(r.estadoTipo, EstadoCampo.requiereRevision);
+      expect(r.estadoSiglas, EstadoCampo.requiereRevision);
+      expect(datos.nombreCompleto.estado, EstadoCampo.requiereRevision);
+      expect(datos.codigo.estado, EstadoCampo.requiereRevision);
+    });
+
+    test('sin título, la estructura sola no confirma unas siglas GM y queda REQUIERE REVISIÓN', () {
+      const sinTitulo = '''
+N° 019-2026-GM-MDP-T
+Pocollay, 07 de enero de 2026.
+VISTO:
+Que, el expediente figura en mesa de partes.
+ACUERDO:
+ARTÍCULO PRIMERO.- APROBAR la priorización del plan de trabajo del distrito para el presente año.
+ARTÍCULO SEGUNDO.- ENCARGAR el cumplimiento del presente acuerdo.
+''';
+      final r = consolidar(sinTitulo);
+
+      expect(r.estadoTipo, EstadoCampo.requiereRevision);
+      expect(r.estadoSiglas, EstadoCampo.requiereRevision);
+      expect(
+        r.estadoTipo == EstadoCampo.detectado && r.tipo?.siglas == 'GM-MDP-T',
+        isFalse,
+      );
+    });
+
+    test('lecturas C y G sin título ni estructura quedan REQUIERE REVISIÓN', () {
+      final r = consolidar(
+        'N° 019-2026-CM-MDP-T\nPocollay, 07 de enero de 2026.',
+        otro: 'N° 019-2026-GM-MDP-T\nPocollay, 07 de enero de 2026.',
+      );
+
+      expect(r.estadoTipo, EstadoCampo.requiereRevision);
+      expect(r.estadoSiglas, EstadoCampo.requiereRevision);
+    });
+
+    test('un acuerdo y una gerencia coherentes siguen DETECTADO', () {
+      const acuerdo = '''
+ACUERDO DE CONCEJO MUNICIPAL
+N° 019-2026-CM-MDP-T
+Pocollay, 07 de enero de 2026.
+ACUERDO:
+ARTÍCULO PRIMERO.- APROBAR la priorización del plan de trabajo del distrito para el presente año.
+ARTÍCULO SEGUNDO.- ENCARGAR el cumplimiento.
+''';
+      const gerencia = '''
+RESOLUCIÓN DE GERENCIA MUNICIPAL
+N° 146-2026-GM-MDP-T
+Pocollay, 02 de octubre de 2026.
+SE RESUELVE:
+ARTÍCULO PRIMERO.- APROBAR el informe de la oficina de administración del distrito.
+ARTÍCULO SEGUNDO.- NOTIFICAR la presente resolución.
+''';
+
+      final a = consolidar(acuerdo);
+      final g = consolidar(gerencia);
+      expect(a.tipo!.siglas, 'CM-MDP-T');
+      expect(a.estadoTipo, EstadoCampo.detectado);
+      expect(a.estadoSiglas, EstadoCampo.detectado);
+      expect(g.tipo!.siglas, 'GM-MDP-T');
+      expect(g.estadoTipo, EstadoCampo.detectado);
+      expect(g.estadoSiglas, EstadoCampo.detectado);
+    });
+  });
 }
